@@ -215,7 +215,11 @@ pub fn compute_swap<const SIZE: usize>(
     let mut current_liquidity = whirlpool.liquidity;
     let mut trade_fee = 0u64;
 
+    let mut while_count = 0;
     while amount_remaining > 0 && sqrt_price_limit != current_sqrt_price {
+        if while_count > 10 {
+            return Err("endless loop");
+        }
         let (next_tick, next_tick_index) = if a_to_b {
             tick_sequence.prev_initialized_tick(current_tick_index)?
         } else {
@@ -272,6 +276,7 @@ pub fn compute_swap<const SIZE: usize>(
         }
 
         current_sqrt_price = step_quote.next_sqrt_price;
+        while_count += 1;
     }
 
     let swapped_amount = token_amount - amount_remaining;
