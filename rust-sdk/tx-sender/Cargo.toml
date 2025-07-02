@@ -22,8 +22,8 @@ tokio = { version = "1.37.0", features = ["full"] }
 serde = { version = "1.0.202", features = ["derive"] }
 serde_json = { version = "^1.0" }
 
-[dev-dependencies]
-solana-cli-config = { version = ">=1.16, <3.0" }
+#[dev-dependencies]
+#solana-cli-config = { version = ">=1.16, <3.0" }
 
 [[example]]
 name = "priority_only_test"

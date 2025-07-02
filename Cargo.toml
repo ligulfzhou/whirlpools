@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "programs/*",
     "rust-sdk/client",
+    "rust-sdk/whirlpool",
     "rust-sdk/core"
 ]
 exclude = [
