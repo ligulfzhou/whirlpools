@@ -1,6 +1,4 @@
-use crate::state::*;
-use anchor_lang::prelude::*;
-use anchor_spl::token_interface::Mint;
+use {crate::state::*, anchor_lang::prelude::*, anchor_spl::token_interface::Mint};
 
 #[derive(Accounts)]
 pub struct InitializeTokenBadge<'info> {
@@ -32,8 +30,7 @@ pub struct InitializeTokenBadge<'info> {
 }
 
 pub fn handler(ctx: Context<InitializeTokenBadge>) -> Result<()> {
-    ctx.accounts.token_badge.initialize(
-        ctx.accounts.whirlpools_config.key(),
-        ctx.accounts.token_mint.key(),
-    )
+    ctx.accounts
+        .token_badge
+        .initialize(ctx.accounts.whirlpools_config.key(), ctx.accounts.token_mint.key())
 }

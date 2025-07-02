@@ -1,11 +1,12 @@
-use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{Mint, TokenInterface};
-
-use crate::{
-    errors::ErrorCode,
-    events::*,
-    state::*,
-    util::{initialize_vault_token_account, to_timestamp_u64, verify_supported_token_mint},
+use {
+    crate::{
+        errors::ErrorCode,
+        events::*,
+        state::*,
+        util::{initialize_vault_token_account, to_timestamp_u64, verify_supported_token_mint},
+    },
+    anchor_lang::prelude::*,
+    anchor_spl::token_interface::{Mint, TokenInterface},
 };
 
 #[derive(Accounts)]
@@ -100,7 +101,8 @@ pub fn handler(
         &ctx.accounts.token_badge_b,
     )?;
 
-    // Don't allow setting trade_enable_timestamp for permission-less adaptive fee tier
+    // Don't allow setting trade_enable_timestamp for permission-less adaptive fee
+    // tier
     let clock = Clock::get()?;
     let timestamp = to_timestamp_u64(clock.unix_timestamp)?;
     if !is_valid_trade_enable_timestamp(
@@ -180,14 +182,16 @@ fn is_valid_trade_enable_timestamp(
         None => true,
         Some(trade_enable_timestamp) => {
             if !is_permissioned_adaptive_fee_tier {
-                // If the adaptive fee tier is permission-less, trade_enable_timestamp is not allowed
+                // If the adaptive fee tier is permission-less, trade_enable_timestamp is not
+                // allowed
                 false
             } else if trade_enable_timestamp > current_timestamp {
                 // reject far future timestamp
                 trade_enable_timestamp - current_timestamp <= MAX_TRADE_ENABLE_TIMESTAMP_DELTA
             } else {
                 // reject too old timestamp (> 30 seconds)
-                // if pool initialize authority want to enable trading immediately, trade_enable_timestamp should be set to None
+                // if pool initialize authority want to enable trading immediately,
+                // trade_enable_timestamp should be set to None
                 current_timestamp - trade_enable_timestamp <= 30
             }
         }
@@ -205,17 +209,9 @@ mod is_valid_trade_enable_timestamp_unit_tests {
         assert!(is_valid_trade_enable_timestamp(None, 0, true));
         assert!(is_valid_trade_enable_timestamp(None, 0, false));
         assert!(is_valid_trade_enable_timestamp(None, u16::MAX as u64, true));
-        assert!(is_valid_trade_enable_timestamp(
-            None,
-            u16::MAX as u64,
-            false
-        ));
+        assert!(is_valid_trade_enable_timestamp(None, u16::MAX as u64, false));
         assert!(is_valid_trade_enable_timestamp(None, u32::MAX as u64, true));
-        assert!(is_valid_trade_enable_timestamp(
-            None,
-            u32::MAX as u64,
-            false
-        ));
+        assert!(is_valid_trade_enable_timestamp(None, u32::MAX as u64, false));
         assert!(is_valid_trade_enable_timestamp(None, u64::MAX, true));
         assert!(is_valid_trade_enable_timestamp(None, u64::MAX, false));
     }
@@ -224,11 +220,7 @@ mod is_valid_trade_enable_timestamp_unit_tests {
     fn trade_enable_timestamp_is_some_but_permission_less() {
         let current_timestamp = u32::MAX as u64;
 
-        assert!(!is_valid_trade_enable_timestamp(
-            Some(0),
-            current_timestamp,
-            false
-        ));
+        assert!(!is_valid_trade_enable_timestamp(Some(0), current_timestamp, false));
         assert!(!is_valid_trade_enable_timestamp(
             Some(current_timestamp - 60),
             current_timestamp,
@@ -352,10 +344,6 @@ mod is_valid_trade_enable_timestamp_unit_tests {
             current_timestamp,
             true
         ));
-        assert!(!is_valid_trade_enable_timestamp(
-            Some(0),
-            current_timestamp,
-            true
-        ));
+        assert!(!is_valid_trade_enable_timestamp(Some(0), current_timestamp, true));
     }
 }

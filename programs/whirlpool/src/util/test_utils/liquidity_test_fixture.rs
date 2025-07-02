@@ -1,15 +1,16 @@
-use crate::manager::liquidity_manager::ModifyLiquidityUpdate;
-use crate::manager::tick_manager::next_tick_cross_update;
-use crate::manager::whirlpool_manager::*;
-use crate::math::{add_liquidity_delta, Q64_RESOLUTION};
-use crate::state::position_builder::PositionBuilder;
-use crate::state::{
-    tick::*, tick_builder::TickBuilder, whirlpool_builder::WhirlpoolBuilder, Whirlpool,
+use {
+    crate::{
+        manager::{
+            liquidity_manager::ModifyLiquidityUpdate, tick_manager::next_tick_cross_update, whirlpool_manager::*,
+        },
+        math::{add_liquidity_delta, Q64_RESOLUTION},
+        state::{
+            position_builder::PositionBuilder, tick::*, tick_builder::TickBuilder, whirlpool_builder::WhirlpoolBuilder,
+            Position, PositionRewardInfo, PositionUpdate, Whirlpool, WhirlpoolRewardInfo, NUM_REWARDS,
+        },
+    },
+    anchor_lang::prelude::*,
 };
-use crate::state::{
-    Position, PositionRewardInfo, PositionUpdate, WhirlpoolRewardInfo, NUM_REWARDS,
-};
-use anchor_lang::prelude::*;
 
 const BELOW_LOWER_TICK_INDEX: i32 = -120;
 const ABOVE_UPPER_TICK_INDEX: i32 = 120;
@@ -93,25 +94,14 @@ impl LiquidityTestFixture {
         }
     }
 
-    pub fn increment_whirlpool_fee_growths(
-        &mut self,
-        fee_growth_delta_a: u128,
-        fee_growth_delta_b: u128,
-    ) {
-        self.whirlpool.fee_growth_global_a = self
-            .whirlpool
-            .fee_growth_global_a
-            .wrapping_add(fee_growth_delta_a);
-        self.whirlpool.fee_growth_global_b = self
-            .whirlpool
-            .fee_growth_global_b
-            .wrapping_add(fee_growth_delta_b);
+    pub fn increment_whirlpool_fee_growths(&mut self, fee_growth_delta_a: u128, fee_growth_delta_b: u128) {
+        self.whirlpool.fee_growth_global_a = self.whirlpool.fee_growth_global_a.wrapping_add(fee_growth_delta_a);
+        self.whirlpool.fee_growth_global_b = self.whirlpool.fee_growth_global_b.wrapping_add(fee_growth_delta_b);
     }
 
     pub fn increment_whirlpool_reward_growths_by_time(&mut self, seconds: u64) {
         let next_timestamp = self.whirlpool.reward_last_updated_timestamp + seconds;
-        self.whirlpool.reward_infos =
-            next_whirlpool_reward_infos(&self.whirlpool, next_timestamp).unwrap();
+        self.whirlpool.reward_infos = next_whirlpool_reward_infos(&self.whirlpool, next_timestamp).unwrap();
         self.whirlpool.reward_last_updated_timestamp = next_timestamp;
     }
 
@@ -152,11 +142,7 @@ impl LiquidityTestFixture {
         }
     }
 
-    pub fn apply_update(
-        &mut self,
-        update: &ModifyLiquidityUpdate,
-        reward_last_updated_timestamp: u64,
-    ) {
+    pub fn apply_update(&mut self, update: &ModifyLiquidityUpdate, reward_last_updated_timestamp: u64) {
         assert!(reward_last_updated_timestamp >= self.whirlpool.reward_last_updated_timestamp);
         self.whirlpool.reward_last_updated_timestamp = reward_last_updated_timestamp;
         self.whirlpool.liquidity = update.whirlpool_liquidity;
@@ -221,10 +207,7 @@ pub fn to_x64(n: u128) -> u128 {
     n << Q64_RESOLUTION
 }
 
-pub fn assert_whirlpool_reward_growths(
-    reward_infos: &[WhirlpoolRewardInfo; NUM_REWARDS],
-    expected_growth: u128,
-) {
+pub fn assert_whirlpool_reward_growths(reward_infos: &[WhirlpoolRewardInfo; NUM_REWARDS], expected_growth: u128) {
     assert_eq!(
         WhirlpoolRewardInfo::to_reward_growths(reward_infos),
         create_reward_growths(expected_growth)
@@ -239,10 +222,7 @@ pub struct ModifyLiquidityExpectation {
     pub tick_upper_update: TickUpdate,
 }
 
-pub fn assert_modify_liquidity(
-    update: &ModifyLiquidityUpdate,
-    expect: &ModifyLiquidityExpectation,
-) {
+pub fn assert_modify_liquidity(update: &ModifyLiquidityUpdate, expect: &ModifyLiquidityExpectation) {
     assert_eq!(update.whirlpool_liquidity, expect.whirlpool_liquidity);
     assert_eq!(
         WhirlpoolRewardInfo::to_reward_growths(&update.reward_infos),

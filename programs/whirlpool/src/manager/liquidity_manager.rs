@@ -1,16 +1,16 @@
-use super::{
-    position_manager::next_position_modify_liquidity_update,
-    tick_manager::{
-        next_fee_growths_inside, next_reward_growths_inside, next_tick_modify_liquidity_update,
+use {
+    super::{
+        position_manager::next_position_modify_liquidity_update,
+        tick_manager::{next_fee_growths_inside, next_reward_growths_inside, next_tick_modify_liquidity_update},
+        whirlpool_manager::{next_whirlpool_liquidity, next_whirlpool_reward_infos},
     },
-    whirlpool_manager::{next_whirlpool_liquidity, next_whirlpool_reward_infos},
+    crate::{
+        errors::ErrorCode,
+        math::{get_amount_delta_a, get_amount_delta_b, sqrt_price_from_tick_index},
+        state::*,
+    },
+    anchor_lang::prelude::{AccountLoader, *},
 };
-use crate::{
-    errors::ErrorCode,
-    math::{get_amount_delta_a, get_amount_delta_b, sqrt_price_from_tick_index},
-    state::*,
-};
-use anchor_lang::prelude::{AccountLoader, *};
 
 #[derive(Debug)]
 pub struct ModifyLiquidityUpdate {
@@ -21,9 +21,10 @@ pub struct ModifyLiquidityUpdate {
     pub position_update: PositionUpdate,
 }
 
-// Calculates state after modifying liquidity by the liquidity_delta for the given positon.
-// Fee and reward growths will also be calculated by this function.
-// To trigger only calculation of fee and reward growths, use calculate_fee_and_reward_growths.
+// Calculates state after modifying liquidity by the liquidity_delta for the
+// given positon. Fee and reward growths will also be calculated by this
+// function. To trigger only calculation of fee and reward growths, use
+// calculate_fee_and_reward_growths.
 pub fn calculate_modify_liquidity<'info>(
     whirlpool: &Whirlpool,
     position: &Position,
@@ -33,12 +34,10 @@ pub fn calculate_modify_liquidity<'info>(
     timestamp: u64,
 ) -> Result<ModifyLiquidityUpdate> {
     let tick_array_lower = tick_array_lower.load()?;
-    let tick_lower =
-        tick_array_lower.get_tick(position.tick_lower_index, whirlpool.tick_spacing)?;
+    let tick_lower = tick_array_lower.get_tick(position.tick_lower_index, whirlpool.tick_spacing)?;
 
     let tick_array_upper = tick_array_upper.load()?;
-    let tick_upper =
-        tick_array_upper.get_tick(position.tick_upper_index, whirlpool.tick_spacing)?;
+    let tick_upper = tick_array_upper.get_tick(position.tick_upper_index, whirlpool.tick_spacing)?;
 
     _calculate_modify_liquidity(
         whirlpool,
@@ -60,15 +59,14 @@ pub fn calculate_fee_and_reward_growths<'info>(
     timestamp: u64,
 ) -> Result<(PositionUpdate, [WhirlpoolRewardInfo; NUM_REWARDS])> {
     let tick_array_lower = tick_array_lower.load()?;
-    let tick_lower =
-        tick_array_lower.get_tick(position.tick_lower_index, whirlpool.tick_spacing)?;
+    let tick_lower = tick_array_lower.get_tick(position.tick_lower_index, whirlpool.tick_spacing)?;
 
     let tick_array_upper = tick_array_upper.load()?;
-    let tick_upper =
-        tick_array_upper.get_tick(position.tick_upper_index, whirlpool.tick_spacing)?;
+    let tick_upper = tick_array_upper.get_tick(position.tick_upper_index, whirlpool.tick_spacing)?;
 
-    // Pass in a liquidity_delta value of 0 to trigger only calculations for fee and reward growths.
-    // Calculating fees and rewards for positions with zero liquidity will result in an error.
+    // Pass in a liquidity_delta value of 0 to trigger only calculations for fee and
+    // reward growths. Calculating fees and rewards for positions with zero
+    // liquidity will result in an error.
     let update = _calculate_modify_liquidity(
         whirlpool,
         position,
@@ -82,7 +80,8 @@ pub fn calculate_fee_and_reward_growths<'info>(
     Ok((update.position_update, update.reward_infos))
 }
 
-// Calculates the state changes after modifying liquidity of a whirlpool position.
+// Calculates the state changes after modifying liquidity of a whirlpool
+// position.
 #[allow(clippy::too_many_arguments)]
 fn _calculate_modify_liquidity(
     whirlpool: &Whirlpool,
@@ -94,7 +93,8 @@ fn _calculate_modify_liquidity(
     liquidity_delta: i128,
     timestamp: u64,
 ) -> Result<ModifyLiquidityUpdate> {
-    // Disallow only updating position fee and reward growth when position has zero liquidity
+    // Disallow only updating position fee and reward growth when position has zero
+    // liquidity
     if liquidity_delta == 0 && position.liquidity == 0 {
         return Err(ErrorCode::LiquidityZero.into());
     }
@@ -233,17 +233,19 @@ pub fn sync_modify_liquidity_values<'info>(
 
 #[cfg(test)]
 mod calculate_modify_liquidity_unit_tests {
-    // Test position start => end state transitions after applying possible liquidity_delta values.
-    // x => position has no liquidity
+    // Test position start => end state transitions after applying possible
+    // liquidity_delta values. x => position has no liquidity
     // o => position has non-zero liquidity
     // x => tick is not initialized
     // o => tick is initialized
-    // ox_position indicates position with liquidity has zero liquidity after modifying liquidity
-    // xo_lower indicates lower tick was initialized after modifying liquidity
+    // ox_position indicates position with liquidity has zero liquidity after
+    // modifying liquidity xo_lower indicates lower tick was initialized after
+    // modifying liquidity
 
     // Position with zero liquidity remains in zero liquidity state
-    // Only possible with negative and zero liquidity delta values which all result in errors
-    // Current tick index location relative to position does not matter
+    // Only possible with negative and zero liquidity delta values which all result
+    // in errors Current tick index location relative to position does not
+    // matter
     mod xx_position {
         use crate::{manager::liquidity_manager::_calculate_modify_liquidity, util::*};
 
@@ -366,9 +368,7 @@ mod calculate_modify_liquidity_unit_tests {
         // Current tick below position
         // Whirlpool virtual liquidity does not change
         mod current_tick_below {
-            use crate::{
-                manager::liquidity_manager::_calculate_modify_liquidity, state::*, util::*,
-            };
+            use crate::{manager::liquidity_manager::_calculate_modify_liquidity, state::*, util::*};
 
             // Position liquidity increase, checkpoint zero values
             // Lower tick initialized, liquidity increase, checkpoint zero values
@@ -485,12 +485,12 @@ mod calculate_modify_liquidity_unit_tests {
                 // Underflow occurs when the lower tick is newly initialized and the upper tick
                 // is already initialized with non-zero growth checkpoints.
 
-                // The upper tick only has non-zero checkpoints when it was either 1) initialized
-                // when current tick is above or 2) when it was crossed after some global fee growth
-                // occurred.
+                // The upper tick only has non-zero checkpoints when it was either 1)
+                // initialized when current tick is above or 2) when it was
+                // crossed after some global fee growth occurred.
 
-                // This test simulates two tick crossings from right to left before adding liquidity
-                // to the position.
+                // This test simulates two tick crossings from right to left before adding
+                // liquidity to the position.
                 let mut test = LiquidityTestFixture::new(LiquidityTestFixtureInfo {
                     curr_index_loc: CurrIndex::Above,
                     whirlpool_liquidity: 100,
@@ -510,7 +510,8 @@ mod calculate_modify_liquidity_unit_tests {
                 test.increment_whirlpool_fee_growths(to_x64(10), to_x64(10));
                 test.increment_whirlpool_reward_growths_by_time(100);
                 test.cross_tick(TickLabel::Lower, Direction::Left);
-                // Lower tick has 0 net liquidity, so crossing does not affect whirlpool liquidity
+                // Lower tick has 0 net liquidity, so crossing does not affect whirlpool
+                // liquidity
                 assert_eq!(test.whirlpool.liquidity, 110);
                 // 1.909 = 1 + (100/110)
                 assert_whirlpool_reward_growths(&test.whirlpool.reward_infos, 35216511413445507630);
@@ -541,10 +542,7 @@ mod calculate_modify_liquidity_unit_tests {
                             fee_growth_checkpoint_a: 340282366920938463278907166694672695296,
                             // Wrapped underflow -10
                             fee_growth_checkpoint_b: 340282366920938463278907166694672695296,
-                            reward_infos: create_position_reward_infos(
-                                340282366920938463444927863358058659840,
-                                0,
-                            ),
+                            reward_infos: create_position_reward_infos(340282366920938463444927863358058659840, 0),
                             ..Default::default()
                         },
                         tick_lower_update: TickUpdate {
@@ -675,16 +673,15 @@ mod calculate_modify_liquidity_unit_tests {
         // Current tick inside position
         // Whirlpool virtual liquidity increases
         mod current_tick_inside {
-            use crate::{
-                manager::liquidity_manager::_calculate_modify_liquidity, state::*, util::*,
-            };
+            use crate::{manager::liquidity_manager::_calculate_modify_liquidity, state::*, util::*};
 
             // Position liquidity increase, checkpoint zero values
             // Lower tick initialized, liquidity increase, checkpoint current values
             // Upper tick initialized, liquidity increase, checkpoint zero values
             #[test]
             fn pos_delta_current_tick_inside_xo_lower_xo_upper() {
-                // Both ticks are uninitialized. This is the first position to use this tick range
+                // Both ticks are uninitialized. This is the first position to use this tick
+                // range
                 let test = LiquidityTestFixture::new(LiquidityTestFixtureInfo {
                     curr_index_loc: CurrIndex::Inside,
                     whirlpool_liquidity: 100,
@@ -799,12 +796,12 @@ mod calculate_modify_liquidity_unit_tests {
                 // Underflow occurs when the lower tick is newly initialized and the upper tick
                 // is already initialized with non-zero growth checkpoints.
 
-                // The upper tick only has non-zero checkpoints when it was either 1) initialized
-                // when current tick is above or 2) when it was crossed after some global fee growth
-                // occurred.
+                // The upper tick only has non-zero checkpoints when it was either 1)
+                // initialized when current tick is above or 2) when it was
+                // crossed after some global fee growth occurred.
 
-                // This test simulates one tick crossing from left to right before adding liquidity
-                // to the position.
+                // This test simulates one tick crossing from left to right before adding
+                // liquidity to the position.
                 let mut test = LiquidityTestFixture::new(LiquidityTestFixtureInfo {
                     curr_index_loc: CurrIndex::Above,
                     whirlpool_liquidity: 100,
@@ -848,10 +845,7 @@ mod calculate_modify_liquidity_unit_tests {
                             fee_growth_checkpoint_a: 340282366920938463278907166694672695296,
                             // Wrapped underflow -10
                             fee_growth_checkpoint_b: 340282366920938463278907166694672695296,
-                            reward_infos: create_position_reward_infos(
-                                340282366920938463444927863358058659840,
-                                0,
-                            ),
+                            reward_infos: create_position_reward_infos(340282366920938463444927863358058659840, 0),
                             ..Default::default()
                         },
                         tick_lower_update: TickUpdate {
@@ -992,9 +986,7 @@ mod calculate_modify_liquidity_unit_tests {
         // Current tick above position
         // Whirlpool virtual liquidity does not change
         mod current_tick_above {
-            use crate::{
-                manager::liquidity_manager::_calculate_modify_liquidity, state::*, util::*,
-            };
+            use crate::{manager::liquidity_manager::_calculate_modify_liquidity, state::*, util::*};
 
             // Position liquidity increase, checkpoint zero values
             // Lower tick initialized, liquidity increase, checkpoint current values
@@ -1090,10 +1082,7 @@ mod calculate_modify_liquidity_unit_tests {
                             fee_growth_checkpoint_a: 340282366920938463278907166694672695296,
                             // Wrapped underflow -20
                             fee_growth_checkpoint_b: 340282366920938463094439725957577179136,
-                            reward_infos: create_position_reward_infos(
-                                340282366920938463408034375210639556608,
-                                0,
-                            ),
+                            reward_infos: create_position_reward_infos(340282366920938463408034375210639556608, 0),
                             ..Default::default()
                         },
                         tick_lower_update: TickUpdate {
@@ -1115,9 +1104,10 @@ mod calculate_modify_liquidity_unit_tests {
             }
 
             // Adds liquidity to a new position where the checkpoints underflow.
-            // Simulates the whirlpool current tick moving below the upper tick, accruing fees
-            // and rewards, and then moving back above the tick. The calculated owed token amounts
-            // are verified to be correct with underflowed checkpoints.
+            // Simulates the whirlpool current tick moving below the upper tick, accruing
+            // fees and rewards, and then moving back above the tick. The
+            // calculated owed token amounts are verified to be correct with
+            // underflowed checkpoints.
             #[test]
             fn pos_delta_current_tick_above_xo_lower_oo_upper_underflow_owed_amounts_ok() {
                 // l < u < c, t = 0 to 100
@@ -1158,10 +1148,7 @@ mod calculate_modify_liquidity_unit_tests {
                             fee_growth_checkpoint_a: 340282366920938463278907166694672695296,
                             // Wrapped underflow -10
                             fee_growth_checkpoint_b: 340282366920938463278907166694672695296,
-                            reward_infos: create_position_reward_infos(
-                                340282366920938463444927863358058659840,
-                                0,
-                            ),
+                            reward_infos: create_position_reward_infos(340282366920938463444927863358058659840, 0),
                             ..Default::default()
                         },
                         tick_lower_update: TickUpdate {
@@ -1477,9 +1464,7 @@ mod calculate_modify_liquidity_unit_tests {
     mod ox_position {
 
         mod current_tick_below {
-            use crate::{
-                manager::liquidity_manager::_calculate_modify_liquidity, state::*, util::*,
-            };
+            use crate::{manager::liquidity_manager::_calculate_modify_liquidity, state::*, util::*};
 
             #[test]
             fn neg_delta_current_tick_below_ox_lower_ox_upper() {
@@ -1582,8 +1567,8 @@ mod calculate_modify_liquidity_unit_tests {
                     reward_infos: create_whirlpool_reward_infos(to_x64(1), to_x64(30)),
                 });
 
-                // Time starts at 30_000. Increments of 10_000 seconds with 1000 whirlpool liquidity
-                // equate to increments of 10 global rewards.
+                // Time starts at 30_000. Increments of 10_000 seconds with 1000 whirlpool
+                // liquidity equate to increments of 10 global rewards.
                 test.whirlpool.reward_last_updated_timestamp = 30_000;
 
                 test.tick_lower.reward_growths_outside = create_reward_growths(to_x64(30));
@@ -1642,9 +1627,7 @@ mod calculate_modify_liquidity_unit_tests {
         }
 
         mod current_tick_inside {
-            use crate::{
-                manager::liquidity_manager::_calculate_modify_liquidity, state::*, util::*,
-            };
+            use crate::{manager::liquidity_manager::_calculate_modify_liquidity, state::*, util::*};
 
             #[test]
             fn neg_delta_current_tick_inside_ox_lower_ox_upper() {
@@ -1744,9 +1727,7 @@ mod calculate_modify_liquidity_unit_tests {
         }
 
         mod current_tick_above {
-            use crate::{
-                manager::liquidity_manager::_calculate_modify_liquidity, state::*, util::*,
-            };
+            use crate::{manager::liquidity_manager::_calculate_modify_liquidity, state::*, util::*};
 
             #[test]
             fn neg_delta_current_tick_above_ox_lower_ox_upper() {
@@ -1833,7 +1814,8 @@ mod calculate_modify_liquidity_unit_tests {
     }
 
     // Position with positive liquidity remains in positive liquidity state
-    // Only possible with lower and upper ticks that are already initialized (oo, oo)
+    // Only possible with lower and upper ticks that are already initialized (oo,
+    // oo)
     mod oo_position {
         use crate::{manager::liquidity_manager::_calculate_modify_liquidity, state::*, util::*};
 
@@ -2299,13 +2281,15 @@ mod calculate_modify_liquidity_unit_tests {
         use crate::{manager::liquidity_manager::_calculate_modify_liquidity, state::*, util::*};
 
         // Add liquidity to new position, accrue fees and rewards, remove all liquidity.
-        // This test checks that accrued fees and rewards are properly accounted even when all
-        // liquidity has been removed from a position and the ticks are still initialized.
+        // This test checks that accrued fees and rewards are properly accounted even
+        // when all liquidity has been removed from a position and the ticks are
+        // still initialized.
         #[test]
         fn accrued_tokens_ok_closed_position_ticks_remain_initialized() {
             // Whirlpool with 1000 liquidity, fees (a: 100, b: 200) and reward (20)
-            // Lower Tick with 10 liquidity, existing fee checkpoints (a: 10, b: 20) and reward (2)
-            // Upper Tick with 10 liquidity, existing fee checkpoints (a: 1, b: 2) and reward (1)
+            // Lower Tick with 10 liquidity, existing fee checkpoints (a: 10, b: 20) and
+            // reward (2) Upper Tick with 10 liquidity, existing fee checkpoints
+            // (a: 1, b: 2) and reward (1)
             let mut test = LiquidityTestFixture::new(LiquidityTestFixtureInfo {
                 curr_index_loc: CurrIndex::Inside,
                 whirlpool_liquidity: 1000,
@@ -2344,7 +2328,7 @@ mod calculate_modify_liquidity_unit_tests {
                 update.position_update,
                 PositionUpdate {
                     liquidity: 100,
-                    fee_growth_checkpoint_a: to_x64(89), // 100 - 10 - 1
+                    fee_growth_checkpoint_a: to_x64(89),  // 100 - 10 - 1
                     fee_growth_checkpoint_b: to_x64(178), // 200 - 20 - 2
                     reward_infos: create_position_reward_infos(315439323660433332633, 0),
                     ..Default::default()
@@ -2431,9 +2415,7 @@ mod calculate_modify_liquidity_unit_tests {
 
         // Test overflow accounting of global fee and reward accumulators
         mod global_accumulators_overflow {
-            use crate::{
-                manager::liquidity_manager::_calculate_modify_liquidity, state::*, util::*,
-            };
+            use crate::{manager::liquidity_manager::_calculate_modify_liquidity, state::*, util::*};
 
             // t1 |---c1---l----------------u--------| open position (checkpoint)
             // t2 |--------l-------c2-------u--------| cross right, accrue tokens
@@ -2496,10 +2478,7 @@ mod calculate_modify_liquidity_unit_tests {
                 test.increment_whirlpool_fee_growths(to_x64(20), to_x64(20)); // fees at -80
                 test.increment_whirlpool_reward_growths_by_time(100);
                 // time: 200, rewards at MAX - 3
-                assert_whirlpool_reward_growths(
-                    &test.whirlpool.reward_infos,
-                    u128::MAX - to_x64(3),
-                );
+                assert_whirlpool_reward_growths(&test.whirlpool.reward_infos, u128::MAX - to_x64(3));
 
                 // t2 - cross right, accrue tokens in position
                 test.cross_tick(TickLabel::Lower, Direction::Right);
@@ -2507,10 +2486,7 @@ mod calculate_modify_liquidity_unit_tests {
                 test.increment_whirlpool_reward_growths_by_time(100); // 300
 
                 // time: 300, rewards at -2.0909
-                assert_whirlpool_reward_growths(
-                    &test.whirlpool.reward_infos,
-                    340282366920938463424804142550375512621,
-                );
+                assert_whirlpool_reward_growths(&test.whirlpool.reward_infos, 340282366920938463424804142550375512621);
 
                 // t3 - cross left, overflow
                 test.cross_tick(TickLabel::Lower, Direction::Left);
@@ -2630,10 +2606,7 @@ mod calculate_modify_liquidity_unit_tests {
                 test.increment_whirlpool_fee_growths(to_x64(20), to_x64(20)); // fees at -80
                 test.increment_whirlpool_reward_growths_by_time(100);
                 // time: 200, rewards at MAX - 3.0909
-                assert_whirlpool_reward_growths(
-                    &test.whirlpool.reward_infos,
-                    340282366920938463406357398476665961005,
-                );
+                assert_whirlpool_reward_growths(&test.whirlpool.reward_infos, 340282366920938463406357398476665961005);
                 test.cross_tick(TickLabel::Lower, Direction::Left);
 
                 // t3 - overflow
@@ -2689,9 +2662,9 @@ mod calculate_modify_liquidity_unit_tests {
                 assert_eq!(test.whirlpool.fee_growth_global_b, 184467440737095516159);
             }
 
-            // t1 |--------l----------------u---c1---| open position (checkpoint), cross left
-            // t2 |--------l-------c2-------u--------| accrue tokens, cross left
-            // t3 |---c3---l----------------u--------| overflow
+            // t1 |--------l----------------u---c1---| open position (checkpoint), cross
+            // left t2 |--------l-------c2-------u--------| accrue tokens, cross
+            // left t3 |---c3---l----------------u--------| overflow
             #[test]
             fn overflow_below_checkpoint_above() {
                 // t1 - open position (checkpoint)
@@ -2755,20 +2728,14 @@ mod calculate_modify_liquidity_unit_tests {
                 test.increment_whirlpool_fee_growths(to_x64(20), to_x64(20)); // fees at -80
                 test.increment_whirlpool_reward_growths_by_time(100);
                 // time: 200, rewards at MAX - 3
-                assert_whirlpool_reward_growths(
-                    &test.whirlpool.reward_infos,
-                    u128::MAX - to_x64(3),
-                );
+                assert_whirlpool_reward_growths(&test.whirlpool.reward_infos, u128::MAX - to_x64(3));
                 test.cross_tick(TickLabel::Upper, Direction::Left);
 
                 // t2 - accrue tokens, cross left
                 test.increment_whirlpool_fee_growths(to_x64(20), to_x64(20)); // fees at -60
                 test.increment_whirlpool_reward_growths_by_time(100);
                 // time: 300, rewards at MAX - 2.0909
-                assert_whirlpool_reward_growths(
-                    &test.whirlpool.reward_infos,
-                    340282366920938463424804142550375512621,
-                );
+                assert_whirlpool_reward_growths(&test.whirlpool.reward_infos, 340282366920938463424804142550375512621);
                 test.cross_tick(TickLabel::Lower, Direction::Left);
 
                 // t3 - overflow
@@ -2826,8 +2793,9 @@ mod calculate_modify_liquidity_unit_tests {
                 assert_eq!(test.whirlpool.fee_growth_global_b, 184467440737095516159);
             }
 
-            // t1 |---c1---l----------------u--------| open position (checkpoint), cross right
-            // t2 |--------l-------c2-------u--------| accrue tokens, overflow
+            // t1 |---c1---l----------------u--------| open position (checkpoint), cross
+            // right t2 |--------l-------c2-------u--------| accrue tokens,
+            // overflow
             #[test]
             fn overflow_inside_checkpoint_below() {
                 // t1 - open position (checkpoint)
@@ -2887,10 +2855,7 @@ mod calculate_modify_liquidity_unit_tests {
                 test.increment_whirlpool_fee_growths(to_x64(20), to_x64(20)); // fees at -80
                 test.increment_whirlpool_reward_growths_by_time(100);
                 // time: 200, rewards at MAX - 3
-                assert_whirlpool_reward_growths(
-                    &test.whirlpool.reward_infos,
-                    u128::MAX - to_x64(3),
-                );
+                assert_whirlpool_reward_growths(&test.whirlpool.reward_infos, u128::MAX - to_x64(3));
                 test.cross_tick(TickLabel::Lower, Direction::Right);
 
                 // t2 - accrue tokens, overflow
@@ -2979,9 +2944,7 @@ mod calculate_modify_liquidity_unit_tests {
                     &ModifyLiquidityExpectation {
                         whirlpool_liquidity: 10000,
                         // time: 100, rewards at -3.888 = -5 + (100 * 100 / 9000)
-                        whirlpool_reward_growths: create_reward_growths(
-                            340282366920938463391637269367342177392,
-                        ),
+                        whirlpool_reward_growths: create_reward_growths(340282366920938463391637269367342177392),
                         position_update: PositionUpdate {
                             liquidity: 1000,
                             ..Default::default()
@@ -2992,9 +2955,7 @@ mod calculate_modify_liquidity_unit_tests {
                             liquidity_gross: 1000,
                             fee_growth_outside_a: u128::MAX - to_x64(100),
                             fee_growth_outside_b: u128::MAX - to_x64(100),
-                            reward_growths_outside: create_reward_growths(
-                                340282366920938463391637269367342177392,
-                            ),
+                            reward_growths_outside: create_reward_growths(340282366920938463391637269367342177392),
                         },
                         tick_upper_update: TickUpdate {
                             initialized: true,
@@ -3046,9 +3007,7 @@ mod calculate_modify_liquidity_unit_tests {
                             liquidity_gross: 1000,
                             fee_growth_outside_a: u128::MAX - to_x64(100),
                             fee_growth_outside_b: u128::MAX - to_x64(100),
-                            reward_growths_outside: create_reward_growths(
-                                340282366920938463391637269367342177392,
-                            ),
+                            reward_growths_outside: create_reward_growths(340282366920938463391637269367342177392),
                         },
                         tick_upper_update: TickUpdate {
                             initialized: true,
@@ -3063,8 +3022,9 @@ mod calculate_modify_liquidity_unit_tests {
                 assert_eq!(test.whirlpool.fee_growth_global_b, 184467440737095516159);
             }
 
-            // t1 |--------l----------------u---c1---| open position (checkpoint), cross left
-            // t2 |--------l-------c2-------u--------| accrue tokens, overflow
+            // t1 |--------l----------------u---c1---| open position (checkpoint), cross
+            // left t2 |--------l-------c2-------u--------| accrue tokens,
+            // overflow
             #[test]
             fn overflow_inside_checkpoint_above() {
                 // t1 - open position (checkpoint)
@@ -3097,9 +3057,7 @@ mod calculate_modify_liquidity_unit_tests {
                     &ModifyLiquidityExpectation {
                         whirlpool_liquidity: 9000,
                         // time: 100, rewards at -3.888 = -5 + (100 * 100 / 9000)
-                        whirlpool_reward_growths: create_reward_growths(
-                            340282366920938463391637269367342177392,
-                        ),
+                        whirlpool_reward_growths: create_reward_growths(340282366920938463391637269367342177392),
                         position_update: PositionUpdate {
                             liquidity: 1000,
                             ..Default::default()
@@ -3110,9 +3068,7 @@ mod calculate_modify_liquidity_unit_tests {
                             liquidity_gross: 1000,
                             fee_growth_outside_a: u128::MAX - to_x64(100),
                             fee_growth_outside_b: u128::MAX - to_x64(100),
-                            reward_growths_outside: create_reward_growths(
-                                340282366920938463391637269367342177392,
-                            ),
+                            reward_growths_outside: create_reward_growths(340282366920938463391637269367342177392),
                         },
                         tick_upper_update: TickUpdate {
                             initialized: true,
@@ -3120,9 +3076,7 @@ mod calculate_modify_liquidity_unit_tests {
                             liquidity_gross: 1000,
                             fee_growth_outside_a: u128::MAX - to_x64(100),
                             fee_growth_outside_b: u128::MAX - to_x64(100),
-                            reward_growths_outside: create_reward_growths(
-                                340282366920938463391637269367342177392,
-                            ),
+                            reward_growths_outside: create_reward_growths(340282366920938463391637269367342177392),
                         },
                     },
                 );
@@ -3133,10 +3087,7 @@ mod calculate_modify_liquidity_unit_tests {
                 test.increment_whirlpool_fee_growths(to_x64(20), to_x64(20)); // fees at -80
                 test.increment_whirlpool_reward_growths_by_time(100);
                 // -2.777 = -3.888 + (100 * 100 / 9000)
-                assert_whirlpool_reward_growths(
-                    &test.whirlpool.reward_infos,
-                    340282366920938463412133651671463901409,
-                );
+                assert_whirlpool_reward_growths(&test.whirlpool.reward_infos, 340282366920938463412133651671463901409);
                 test.cross_tick(TickLabel::Upper, Direction::Left);
 
                 // t2 - accrue tokens, overflow
@@ -3176,9 +3127,7 @@ mod calculate_modify_liquidity_unit_tests {
                             liquidity_gross: 1000,
                             fee_growth_outside_a: u128::MAX - to_x64(100),
                             fee_growth_outside_b: u128::MAX - to_x64(100),
-                            reward_growths_outside: create_reward_growths(
-                                340282366920938463391637269367342177392,
-                            ),
+                            reward_growths_outside: create_reward_growths(340282366920938463391637269367342177392),
                         },
                         tick_upper_update: TickUpdate {
                             initialized: true,
@@ -3195,9 +3144,9 @@ mod calculate_modify_liquidity_unit_tests {
                 assert_eq!(test.whirlpool.fee_growth_global_b, 184467440737095516159);
             }
 
-            // t1 |---c1---l----------------u--------| open position (checkpoint), cross right
-            // t2 |--------l-------c2-------u--------| accrue tokens, cross right
-            // t3 |--------l----------------u---c3---| overflow
+            // t1 |---c1---l----------------u--------| open position (checkpoint), cross
+            // right t2 |--------l-------c2-------u--------| accrue tokens,
+            // cross right t3 |--------l----------------u---c3---| overflow
             #[test]
             fn overflow_above_checkpoint_below() {
                 // t1 - open position (checkpoint)
@@ -3256,20 +3205,14 @@ mod calculate_modify_liquidity_unit_tests {
                 test.increment_whirlpool_fee_growths(to_x64(20), to_x64(20)); // fees at -80
                 test.increment_whirlpool_reward_growths_by_time(100);
                 // time: 200, rewards at -3
-                assert_whirlpool_reward_growths(
-                    &test.whirlpool.reward_infos,
-                    u128::MAX - to_x64(3),
-                );
+                assert_whirlpool_reward_growths(&test.whirlpool.reward_infos, u128::MAX - to_x64(3));
                 test.cross_tick(TickLabel::Lower, Direction::Right);
 
                 // // t2 - accrue tokens, cross right
                 test.increment_whirlpool_fee_growths(to_x64(20), to_x64(20)); // fees at -60
                 test.increment_whirlpool_reward_growths_by_time(100);
                 // time: 300, rewards at -2.0909 =
-                assert_whirlpool_reward_growths(
-                    &test.whirlpool.reward_infos,
-                    340282366920938463424804142550375512621,
-                );
+                assert_whirlpool_reward_growths(&test.whirlpool.reward_infos, 340282366920938463424804142550375512621);
                 test.cross_tick(TickLabel::Upper, Direction::Right);
 
                 // t3 - overflow
@@ -3319,9 +3262,7 @@ mod calculate_modify_liquidity_unit_tests {
                             liquidity_gross: 1000,
                             fee_growth_outside_a: u128::MAX - to_x64(60),
                             fee_growth_outside_b: u128::MAX - to_x64(60),
-                            reward_growths_outside: create_reward_growths(
-                                340282366920938463424804142550375512621,
-                            ),
+                            reward_growths_outside: create_reward_growths(340282366920938463424804142550375512621),
                         },
                     },
                 );
@@ -3395,10 +3336,7 @@ mod calculate_modify_liquidity_unit_tests {
                 test.increment_whirlpool_fee_growths(to_x64(20), to_x64(20)); // fees at -80
                 test.increment_whirlpool_reward_growths_by_time(100);
                 // time: 200, rewards at MAX - 3.0909
-                assert_whirlpool_reward_growths(
-                    &test.whirlpool.reward_infos,
-                    340282366920938463406357398476665961005,
-                );
+                assert_whirlpool_reward_growths(&test.whirlpool.reward_infos, 340282366920938463406357398476665961005);
                 test.cross_tick(TickLabel::Upper, Direction::Right);
 
                 // t3 - overflow
@@ -3446,9 +3384,7 @@ mod calculate_modify_liquidity_unit_tests {
                             liquidity_gross: 1000,
                             fee_growth_outside_a: u128::MAX - to_x64(80),
                             fee_growth_outside_b: u128::MAX - to_x64(80),
-                            reward_growths_outside: create_reward_growths(
-                                340282366920938463406357398476665961005,
-                            ),
+                            reward_growths_outside: create_reward_growths(340282366920938463406357398476665961005),
                         },
                     },
                 );
@@ -3457,9 +3393,9 @@ mod calculate_modify_liquidity_unit_tests {
                 assert_eq!(test.whirlpool.fee_growth_global_b, 184467440737095516159);
             }
 
-            // t1 |--------l----------------u---c1---| open position (checkpoint), cross left
-            // t2 |--------l-------c2-------u--------| accrue tokens, cross right
-            // t3 |--------l----------------u---c3---| overflow
+            // t1 |--------l----------------u---c1---| open position (checkpoint), cross
+            // left t2 |--------l-------c2-------u--------| accrue tokens, cross
+            // right t3 |--------l----------------u---c3---| overflow
             #[test]
             fn overflow_above_checkpoint_above() {
                 // t1 - open position (checkpoint)
@@ -3523,20 +3459,14 @@ mod calculate_modify_liquidity_unit_tests {
                 test.increment_whirlpool_fee_growths(to_x64(20), to_x64(20)); // fees at -80
                 test.increment_whirlpool_reward_growths_by_time(100);
                 // time: 200, rewards at MAX - 3
-                assert_whirlpool_reward_growths(
-                    &test.whirlpool.reward_infos,
-                    u128::MAX - to_x64(3),
-                );
+                assert_whirlpool_reward_growths(&test.whirlpool.reward_infos, u128::MAX - to_x64(3));
                 test.cross_tick(TickLabel::Upper, Direction::Left);
 
                 // t2 - accrue tokens, cross right
                 test.increment_whirlpool_fee_growths(to_x64(20), to_x64(20)); // fees at -60
                 test.increment_whirlpool_reward_growths_by_time(100);
                 // time: 300, rewards at MAX - 2.0909
-                assert_whirlpool_reward_growths(
-                    &test.whirlpool.reward_infos,
-                    340282366920938463424804142550375512621,
-                );
+                assert_whirlpool_reward_growths(&test.whirlpool.reward_infos, 340282366920938463424804142550375512621);
                 test.cross_tick(TickLabel::Upper, Direction::Right);
 
                 // t3 - overflow
@@ -3586,9 +3516,7 @@ mod calculate_modify_liquidity_unit_tests {
                             liquidity_gross: 1000,
                             fee_growth_outside_a: u128::MAX - to_x64(80),
                             fee_growth_outside_b: u128::MAX - to_x64(80),
-                            reward_growths_outside: create_reward_growths(
-                                340282366920938463406357398476665961005,
-                            ),
+                            reward_growths_outside: create_reward_growths(340282366920938463406357398476665961005),
                         },
                     },
                 );

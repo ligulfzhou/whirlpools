@@ -8,25 +8,28 @@
 /// Based on parity's uint crate
 /// https://github.com/paritytech/parity-common/tree/master/uint
 ///
-/// Note: We cannot use U256 from primitive-types (default u256 from parity's uint) because we need to extend the U256 struct to
-/// support the Borsh serial/deserialize traits.
+/// Note: We cannot use U256 from primitive-types (default u256 from parity's
+/// uint) because we need to extend the U256 struct to support the Borsh
+/// serial/deserialize traits.
 ///
-/// The reason why this custom U256 impl does not directly impl TryInto traits is because of this:
-/// https://stackoverflow.com/questions/37347311/how-is-there-a-conflicting-implementation-of-from-when-using-a-generic-type
+/// The reason why this custom U256 impl does not directly impl TryInto traits
+/// is because of this: https://stackoverflow.com/questions/37347311/how-is-there-a-conflicting-implementation-of-from-when-using-a-generic-type
 ///
 /// As a result, we have to define our own custom Into methods
 ///
 /// U256 reference:
 /// https://crates.parity.io/sp_core/struct.U256.html
-///
 use borsh09::{BorshDeserialize, BorshSerialize};
-use std::borrow::BorrowMut;
-use std::convert::TryInto;
-use std::io::{Error, ErrorKind, Write};
-use std::mem::size_of;
-use uint::construct_uint;
-
-use crate::errors::ErrorCode;
+use {
+    crate::errors::ErrorCode,
+    std::{
+        borrow::BorrowMut,
+        convert::TryInto,
+        io::{Error, ErrorKind, Write},
+        mem::size_of,
+    },
+    uint::construct_uint,
+};
 
 macro_rules! impl_borsh_serialize_for_bn {
     ($type: ident) => {
@@ -46,10 +49,7 @@ macro_rules! impl_borsh_deserialize_for_bn {
             #[inline]
             fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
                 if buf.len() < size_of::<$type>() {
-                    return Err(Error::new(
-                        ErrorKind::InvalidInput,
-                        "Unexpected length of input",
-                    ));
+                    return Err(Error::new(ErrorKind::InvalidInput, "Unexpected length of input"));
                 }
                 let res = $type::from_le_bytes(buf[..size_of::<$type>()].try_into().unwrap());
                 *buf = &buf[size_of::<$type>()..];

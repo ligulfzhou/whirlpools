@@ -1,9 +1,12 @@
-use crate::errors::ErrorCode;
-use crate::math::{add_liquidity_delta, checked_mul_div};
-use crate::state::*;
+use crate::{
+    errors::ErrorCode,
+    math::{add_liquidity_delta, checked_mul_div},
+    state::*,
+};
 
-// Calculates the next global reward growth variables based on the given timestamp.
-// The provided timestamp must be greater than or equal to the last updated timestamp.
+// Calculates the next global reward growth variables based on the given
+// timestamp. The provided timestamp must be greater than or equal to the last
+// updated timestamp.
 pub fn next_whirlpool_reward_infos(
     whirlpool: &Whirlpool,
     next_timestamp: u64,
@@ -29,12 +32,8 @@ pub fn next_whirlpool_reward_infos(
         // Calculate the new reward growth delta.
         // If the calculation overflows, set the delta value to zero.
         // This will halt reward distributions for this reward.
-        let reward_growth_delta = checked_mul_div(
-            time_delta,
-            reward_info.emissions_per_second_x64,
-            whirlpool.liquidity,
-        )
-        .unwrap_or(0);
+        let reward_growth_delta =
+            checked_mul_div(time_delta, reward_info.emissions_per_second_x64, whirlpool.liquidity).unwrap_or(0);
 
         // Add the reward growth delta to the global reward growth.
         let curr_growth_global = reward_info.growth_global_x64;
@@ -44,17 +43,16 @@ pub fn next_whirlpool_reward_infos(
     Ok(next_reward_infos)
 }
 
-// Calculates the next global liquidity for a whirlpool depending on its position relative
-// to the lower and upper tick indexes and the liquidity_delta.
+// Calculates the next global liquidity for a whirlpool depending on its
+// position relative to the lower and upper tick indexes and the
+// liquidity_delta.
 pub fn next_whirlpool_liquidity(
     whirlpool: &Whirlpool,
     tick_upper_index: i32,
     tick_lower_index: i32,
     liquidity_delta: i128,
 ) -> Result<u128, ErrorCode> {
-    if whirlpool.tick_current_index < tick_upper_index
-        && whirlpool.tick_current_index >= tick_lower_index
-    {
+    if whirlpool.tick_current_index < tick_upper_index && whirlpool.tick_current_index >= tick_lower_index {
         add_liquidity_delta(whirlpool.liquidity, liquidity_delta)
     } else {
         Ok(whirlpool.liquidity)
@@ -64,14 +62,18 @@ pub fn next_whirlpool_liquidity(
 #[cfg(test)]
 mod whirlpool_manager_tests {
 
-    use anchor_lang::prelude::Pubkey;
-
-    use crate::manager::whirlpool_manager::next_whirlpool_reward_infos;
-    use crate::math::Q64_RESOLUTION;
-    use crate::state::whirlpool::WhirlpoolRewardInfo;
-    use crate::state::whirlpool::NUM_REWARDS;
-    use crate::state::whirlpool_builder::WhirlpoolBuilder;
-    use crate::state::Whirlpool;
+    use {
+        crate::{
+            manager::whirlpool_manager::next_whirlpool_reward_infos,
+            math::Q64_RESOLUTION,
+            state::{
+                whirlpool::{WhirlpoolRewardInfo, NUM_REWARDS},
+                whirlpool_builder::WhirlpoolBuilder,
+                Whirlpool,
+            },
+        },
+        anchor_lang::prelude::Pubkey,
+    };
 
     // Initializes a whirlpool for testing with all the rewards initialized
     fn init_test_whirlpool(liquidity: u128, reward_last_updated_timestamp: u64) -> Whirlpool {
@@ -108,11 +110,7 @@ mod whirlpool_manager_tests {
         let result = next_whirlpool_reward_infos(&whirlpool, 1577855800);
         assert_eq!(
             WhirlpoolRewardInfo::to_reward_growths(&result.unwrap()),
-            [
-                100 << Q64_RESOLUTION,
-                200 << Q64_RESOLUTION,
-                300 << Q64_RESOLUTION
-            ]
+            [100 << Q64_RESOLUTION, 200 << Q64_RESOLUTION, 300 << Q64_RESOLUTION]
         );
     }
 
@@ -123,11 +121,7 @@ mod whirlpool_manager_tests {
         let result = next_whirlpool_reward_infos(&whirlpool, 1577854800);
         assert_eq!(
             WhirlpoolRewardInfo::to_reward_growths(&result.unwrap()),
-            [
-                100 << Q64_RESOLUTION,
-                200 << Q64_RESOLUTION,
-                300 << Q64_RESOLUTION
-            ]
+            [100 << Q64_RESOLUTION, 200 << Q64_RESOLUTION, 300 << Q64_RESOLUTION]
         );
     }
 

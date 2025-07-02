@@ -1,14 +1,15 @@
-use anchor_lang::prelude::*;
-use anchor_spl::{
-    token_2022::{self, Token2022},
-    token_interface::{Mint, TokenAccount},
-};
-
-use crate::{
-    state::*,
-    util::{
-        close_empty_token_account_2022, freeze_user_position_token_2022, is_locked_position,
-        transfer_user_position_token_2022, unfreeze_user_position_token_2022, validate_owner,
+use {
+    crate::{
+        state::*,
+        util::{
+            close_empty_token_account_2022, freeze_user_position_token_2022, is_locked_position,
+            transfer_user_position_token_2022, unfreeze_user_position_token_2022, validate_owner,
+        },
+    },
+    anchor_lang::prelude::*,
+    anchor_spl::{
+        token_2022::{self, Token2022},
+        token_interface::{Mint, TokenAccount},
     },
 };
 
@@ -54,7 +55,8 @@ pub struct TransferLockedPosition<'info> {
 pub fn handler(ctx: Context<TransferLockedPosition>) -> Result<()> {
     // Only allow the owner of the position to transfer this and not the delegate.
     // * Once a position is locked the delegate cannot be changed
-    // * The delegate gets removed once it transfers the position, meaning the subsequent ixs fails here
+    // * The delegate gets removed once it transfers the position, meaning the
+    //   subsequent ixs fails here
     validate_owner(
         &ctx.accounts.position_token_account.owner,
         &ctx.accounts.position_authority.to_account_info(),

@@ -4,8 +4,8 @@ use anchor_lang::prelude::*;
 #[derive(Default)]
 pub struct TokenBadge {
     pub whirlpools_config: Pubkey, // 32
-    pub token_mint: Pubkey,        // 32
-                                   // 128 RESERVE
+    pub token_mint: Pubkey,        /* 32
+                                    * 128 RESERVE */
 }
 
 impl TokenBadge {
@@ -20,25 +20,19 @@ impl TokenBadge {
 
 #[cfg(test)]
 mod token_badge_initialize_tests {
-    use super::*;
-    use std::str::FromStr;
+    use {super::*, std::str::FromStr};
 
     #[test]
     fn test_default() {
-        let token_badge = TokenBadge {
-            ..Default::default()
-        };
+        let token_badge = TokenBadge { ..Default::default() };
         assert_eq!(token_badge.whirlpools_config, Pubkey::default());
         assert_eq!(token_badge.token_mint, Pubkey::default());
     }
 
     #[test]
     fn test_initialize() {
-        let mut token_badge = TokenBadge {
-            ..Default::default()
-        };
-        let whirlpools_config =
-            Pubkey::from_str("2LecshUwdy9xi7meFgHtFJQNSKk4KdTrcpvaB56dP2NQ").unwrap();
+        let mut token_badge = TokenBadge { ..Default::default() };
+        let whirlpools_config = Pubkey::from_str("2LecshUwdy9xi7meFgHtFJQNSKk4KdTrcpvaB56dP2NQ").unwrap();
         let token_mint = Pubkey::from_str("orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE").unwrap();
 
         let result = token_badge.initialize(whirlpools_config, token_mint);
@@ -51,9 +45,7 @@ mod token_badge_initialize_tests {
 
 #[cfg(test)]
 mod data_layout_tests {
-    use anchor_lang::Discriminator;
-
-    use super::*;
+    use {super::*, anchor_lang::Discriminator};
 
     #[test]
     fn test_token_badge_data_layout() {
@@ -66,23 +58,18 @@ mod data_layout_tests {
         let mut offset = 0;
         token_badge_data[offset..offset + 8].copy_from_slice(&TokenBadge::discriminator());
         offset += 8;
-        token_badge_data[offset..offset + 32]
-            .copy_from_slice(&token_badge_whirlpools_config.to_bytes());
+        token_badge_data[offset..offset + 32].copy_from_slice(&token_badge_whirlpools_config.to_bytes());
         offset += 32;
         token_badge_data[offset..offset + 32].copy_from_slice(&token_badge_token_mint.to_bytes());
         offset += 32;
-        token_badge_data[offset..offset + token_badge_reserved.len()]
-            .copy_from_slice(&token_badge_reserved);
+        token_badge_data[offset..offset + token_badge_reserved.len()].copy_from_slice(&token_badge_reserved);
         offset += token_badge_reserved.len();
         assert_eq!(offset, TokenBadge::LEN);
 
         // deserialize
         let deserialized = TokenBadge::try_deserialize(&mut token_badge_data.as_ref()).unwrap();
 
-        assert_eq!(
-            token_badge_whirlpools_config,
-            deserialized.whirlpools_config
-        );
+        assert_eq!(token_badge_whirlpools_config, deserialized.whirlpools_config);
         assert_eq!(token_badge_token_mint, deserialized.token_mint);
 
         // serialize

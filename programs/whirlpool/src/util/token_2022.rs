@@ -1,20 +1,27 @@
-use anchor_lang::prelude::*;
-use anchor_spl::associated_token::{self, AssociatedToken};
-use anchor_spl::token_2022::spl_token_2022::extension::{
-    BaseStateWithExtensions, StateWithExtensions,
+use {
+    crate::{
+        constants::{WP_2022_METADATA_NAME_PREFIX, WP_2022_METADATA_SYMBOL, WP_2022_METADATA_URI_BASE},
+        state::*,
+    },
+    anchor_lang::prelude::*,
+    anchor_spl::{
+        associated_token::{self, AssociatedToken},
+        token_2022::{
+            get_account_data_size,
+            spl_token_2022::{
+                self,
+                extension::{BaseStateWithExtensions, ExtensionType, StateWithExtensions},
+                instruction::AuthorityType,
+            },
+            GetAccountDataSize, Token2022,
+        },
+        token_interface::{Mint, TokenAccount, TokenInterface},
+    },
+    solana_program::{
+        program::{invoke, invoke_signed},
+        system_instruction::{create_account, transfer},
+    },
 };
-use anchor_spl::token_2022::spl_token_2022::{
-    self, extension::ExtensionType, instruction::AuthorityType,
-};
-use anchor_spl::token_2022::{get_account_data_size, GetAccountDataSize, Token2022};
-use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
-use solana_program::program::{invoke, invoke_signed};
-use solana_program::system_instruction::{create_account, transfer};
-
-use crate::constants::{
-    WP_2022_METADATA_NAME_PREFIX, WP_2022_METADATA_SYMBOL, WP_2022_METADATA_URI_BASE,
-};
-use crate::state::*;
 
 pub fn initialize_position_mint_2022<'info>(
     position_mint: &Signer<'info>,
@@ -24,16 +31,12 @@ pub fn initialize_position_mint_2022<'info>(
     token_2022_program: &Program<'info, Token2022>,
     use_token_metadata_extension: bool,
 ) -> Result<()> {
-    let space = ExtensionType::try_calculate_account_len::<spl_token_2022::state::Mint>(
-        if use_token_metadata_extension {
-            &[
-                ExtensionType::MintCloseAuthority,
-                ExtensionType::MetadataPointer,
-            ]
+    let space =
+        ExtensionType::try_calculate_account_len::<spl_token_2022::state::Mint>(if use_token_metadata_extension {
+            &[ExtensionType::MintCloseAuthority, ExtensionType::MetadataPointer]
         } else {
             &[ExtensionType::MintCloseAuthority]
-        },
-    )?;
+        })?;
 
     let lamports = Rent::get()?.minimum_balance(space);
 
@@ -136,10 +139,9 @@ pub fn initialize_token_metadata_extension<'info>(
 
     // we need to add rent for TokenMetadata extension to reallocate space
     let token_mint_data = position_mint.try_borrow_data()?;
-    let token_mint_unpacked =
-        StateWithExtensions::<spl_token_2022::state::Mint>::unpack(&token_mint_data)?;
-    let new_account_len = token_mint_unpacked
-        .try_get_new_account_len::<spl_token_metadata_interface::state::TokenMetadata>(&metadata)?;
+    let token_mint_unpacked = StateWithExtensions::<spl_token_2022::state::Mint>::unpack(&token_mint_data)?;
+    let new_account_len =
+        token_mint_unpacked.try_get_new_account_len::<spl_token_metadata_interface::state::TokenMetadata>(&metadata)?;
     let new_rent_exempt_minimum = Rent::get()?.minimum_balance(new_account_len);
     let additional_rent = new_rent_exempt_minimum.saturating_sub(position_mint.lamports());
     drop(token_mint_data); // CPI call will borrow the account data
@@ -333,12 +335,7 @@ pub fn build_position_token_metadata<'info>(
 
     // WP_2022_METADATA_URI_BASE + "/" + pool address + "/" + position address
     // Must be less than 128 bytes
-    let uri = format!(
-        "{}/{}/{}",
-        WP_2022_METADATA_URI_BASE,
-        whirlpool.key(),
-        position.key(),
-    );
+    let uri = format!("{}/{}/{}", WP_2022_METADATA_URI_BASE, whirlpool.key(), position.key(),);
 
     (name, WP_2022_METADATA_SYMBOL.to_string(), uri)
 }
@@ -350,7 +347,8 @@ pub fn freeze_user_position_token_2022<'info>(
     position: &Account<'info, Position>,
     position_seeds: &[&[u8]],
 ) -> Result<()> {
-    // Note: Token-2022 program rejects the freeze instruction if the account is already frozen.
+    // Note: Token-2022 program rejects the freeze instruction if the account is
+    // already frozen.
     invoke_signed(
         &spl_token_2022::instruction::freeze_account(
             token_2022_program.key,
@@ -378,7 +376,8 @@ pub fn unfreeze_user_position_token_2022<'info>(
     position: &Account<'info, Position>,
     position_seeds: &[&[u8]],
 ) -> Result<()> {
-    // Note: Token-2022 program rejects the unfreeze instruction if the account is not frozen.
+    // Note: Token-2022 program rejects the unfreeze instruction if the account is
+    // not frozen.
     invoke_signed(
         &spl_token_2022::instruction::thaw_account(
             token_2022_program.key,
@@ -465,9 +464,10 @@ pub fn initialize_vault_token_account<'info>(
 ) -> Result<()> {
     let is_token_2022 = token_program.key() == spl_token_2022::ID;
 
-    // The size required for extensions that are mandatory on the TokenAccount side — based on the TokenExtensions enabled on the Mint —
-    // is automatically accounted for. For non-mandatory extensions, however, they must be explicitly added,
-    // so we specify ImmutableOwner explicitly.
+    // The size required for extensions that are mandatory on the TokenAccount side
+    // — based on the TokenExtensions enabled on the Mint — is automatically
+    // accounted for. For non-mandatory extensions, however, they must be explicitly
+    // added, so we specify ImmutableOwner explicitly.
     let space = get_account_data_size(
         CpiContext::new(
             token_program.to_account_info(),
@@ -476,9 +476,11 @@ pub fn initialize_vault_token_account<'info>(
             },
         ),
         // Needless to say, the program will never attempt to change the owner of the vault.
-        // However, since the ImmutableOwner extension only increases the account size by 4 bytes, the overhead of always including it is negligible.
-        // On the other hand, it makes it easier to comply with cases where ImmutableOwner is required, and it adds a layer of safety from a security standpoint.
-        // Therefore, we'll include it by default going forward. (Vaults initialized after this change will have the ImmutableOwner extension.)
+        // However, since the ImmutableOwner extension only increases the account size by 4 bytes, the overhead of
+        // always including it is negligible. On the other hand, it makes it easier to comply with cases where
+        // ImmutableOwner is required, and it adds a layer of safety from a security standpoint. Therefore,
+        // we'll include it by default going forward. (Vaults initialized after this change will have the
+        // ImmutableOwner extension.)
         if is_token_2022 {
             &[ExtensionType::ImmutableOwner]
         } else {
@@ -508,14 +510,8 @@ pub fn initialize_vault_token_account<'info>(
     if is_token_2022 {
         // initialize ImmutableOwner extension
         invoke(
-            &spl_token_2022::instruction::initialize_immutable_owner(
-                token_program.key,
-                vault_token_account.key,
-            )?,
-            &[
-                token_program.to_account_info(),
-                vault_token_account.to_account_info(),
-            ],
+            &spl_token_2022::instruction::initialize_immutable_owner(token_program.key, vault_token_account.key)?,
+            &[token_program.to_account_info(), vault_token_account.to_account_info()],
         )?;
     }
 

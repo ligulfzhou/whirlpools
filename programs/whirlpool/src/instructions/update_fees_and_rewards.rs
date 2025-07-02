@@ -1,7 +1,6 @@
-use anchor_lang::prelude::*;
-
-use crate::{
-    manager::liquidity_manager::calculate_fee_and_reward_growths, state::*, util::to_timestamp_u64,
+use {
+    crate::{manager::liquidity_manager::calculate_fee_and_reward_growths, state::*, util::to_timestamp_u64},
+    anchor_lang::prelude::*,
 };
 
 #[derive(Accounts)]

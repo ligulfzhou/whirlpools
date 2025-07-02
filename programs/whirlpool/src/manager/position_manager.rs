@@ -14,8 +14,9 @@ pub fn next_position_modify_liquidity_update(
     let mut update = PositionUpdate::default();
 
     // Calculate fee deltas.
-    // If fee deltas overflow, default to a zero value. This means the position loses
-    // all fees earned since the last time the position was modified or fees collected.
+    // If fee deltas overflow, default to a zero value. This means the position
+    // loses all fees earned since the last time the position was modified or
+    // fees collected.
     let growth_delta_a = fee_growth_inside_a.wrapping_sub(position.fee_growth_checkpoint_a);
     let fee_delta_a = checked_mul_shift_right(position.liquidity, growth_delta_a).unwrap_or(0);
 
@@ -34,12 +35,11 @@ pub fn next_position_modify_liquidity_update(
         let curr_reward_info = position.reward_infos[i];
 
         // Calculate reward delta.
-        // If reward delta overflows, default to a zero value. This means the position loses all
-        // rewards earned since the last time the position was modified or rewards were collected.
-        let reward_growth_delta =
-            reward_growth_inside.wrapping_sub(curr_reward_info.growth_inside_checkpoint);
-        let amount_owed_delta =
-            checked_mul_shift_right(position.liquidity, reward_growth_delta).unwrap_or(0);
+        // If reward delta overflows, default to a zero value. This means the position
+        // loses all rewards earned since the last time the position was
+        // modified or rewards were collected.
+        let reward_growth_delta = reward_growth_inside.wrapping_sub(curr_reward_info.growth_inside_checkpoint);
+        let amount_owed_delta = checked_mul_shift_right(position.liquidity, reward_growth_delta).unwrap_or(0);
 
         update.growth_inside_checkpoint = reward_growth_inside;
 
@@ -54,12 +54,13 @@ pub fn next_position_modify_liquidity_update(
 
 #[cfg(test)]
 mod position_manager_unit_tests {
-    use crate::{
-        math::{add_liquidity_delta, Q64_RESOLUTION},
-        state::{position_builder::PositionBuilder, Position, PositionRewardInfo, NUM_REWARDS},
+    use {
+        super::next_position_modify_liquidity_update,
+        crate::{
+            math::{add_liquidity_delta, Q64_RESOLUTION},
+            state::{position_builder::PositionBuilder, Position, PositionRewardInfo, NUM_REWARDS},
+        },
     };
-
-    use super::next_position_modify_liquidity_update;
 
     #[test]
     fn ok_positive_liquidity_delta_fee_growth() {
@@ -140,14 +141,9 @@ mod position_manager_unit_tests {
             .fee_owed_a(10)
             .fee_owed_b(20)
             .build();
-        let update = next_position_modify_liquidity_update(
-            &position,
-            i64::MAX as i128,
-            u128::MAX,
-            u128::MAX,
-            &[0, 0, 0],
-        )
-        .unwrap();
+        let update =
+            next_position_modify_liquidity_update(&position, i64::MAX as i128, u128::MAX, u128::MAX, &[0, 0, 0])
+                .unwrap();
         assert_eq!(update.fee_growth_checkpoint_a, u128::MAX);
         assert_eq!(update.fee_growth_checkpoint_b, u128::MAX);
         assert_eq!(update.fee_owed_a, 10);
@@ -187,11 +183,7 @@ mod position_manager_unit_tests {
                 name: "all initialized reward growths update",
                 position,
                 liquidity_delta: 2500,
-                reward_growths_inside: [
-                    200 << Q64_RESOLUTION,
-                    500 << Q64_RESOLUTION,
-                    1000 << Q64_RESOLUTION,
-                ],
+                reward_growths_inside: [200 << Q64_RESOLUTION, 500 << Q64_RESOLUTION, 1000 << Q64_RESOLUTION],
                 expected_reward_infos: [
                     PositionRewardInfo {
                         growth_inside_checkpoint: 200 << Q64_RESOLUTION,
@@ -212,9 +204,7 @@ mod position_manager_unit_tests {
                 position: &PositionBuilder::new(-10, 10)
                     .liquidity(i64::MAX as u128)
                     .reward_infos([
-                        PositionRewardInfo {
-                            ..Default::default()
-                        },
+                        PositionRewardInfo { ..Default::default() },
                         PositionRewardInfo {
                             amount_owed: 100,
                             ..Default::default()

@@ -1,12 +1,16 @@
-use crate::manager::swap_manager::*;
-use crate::math::tick_math::*;
-use crate::state::{
-    tick::*, tick_builder::TickBuilder, whirlpool_builder::WhirlpoolBuilder, TickArray, Whirlpool,
+use {
+    crate::{
+        manager::swap_manager::*,
+        math::tick_math::*,
+        state::{
+            tick::*, tick_builder::TickBuilder, whirlpool_builder::WhirlpoolBuilder, AdaptiveFeeInfo, TickArray,
+            Whirlpool, WhirlpoolRewardInfo, NUM_REWARDS,
+        },
+        util::SwapTickSequence,
+    },
+    anchor_lang::prelude::*,
+    std::cell::RefCell,
 };
-use crate::state::{AdaptiveFeeInfo, WhirlpoolRewardInfo, NUM_REWARDS};
-use crate::util::SwapTickSequence;
-use anchor_lang::prelude::*;
-use std::cell::RefCell;
 
 pub const TS_8: u16 = 8;
 pub const TS_128: u16 = 128;
@@ -114,10 +118,7 @@ pub fn assert_swap(swap_update: &PostSwapUpdate, expect: &SwapTestExpectation) {
 pub fn assert_swap_tick_state(tick: &Tick, expect: &TickExpectation) {
     assert_eq!({ tick.fee_growth_outside_a }, expect.fee_growth_outside_a);
     assert_eq!({ tick.fee_growth_outside_b }, expect.fee_growth_outside_b);
-    assert_eq!(
-        { tick.reward_growths_outside },
-        expect.reward_growths_outside
-    );
+    assert_eq!({ tick.reward_growths_outside }, expect.reward_growths_outside);
 }
 
 pub fn build_filled_tick_array(start_index: i32, tick_spacing: u16) -> Vec<TestTickInfo> {
@@ -153,19 +154,16 @@ impl SwapTestFixture {
             .protocol_fee_rate(info.protocol_fee_rate)
             .build();
 
-        let array_ticks: Vec<Option<&Vec<TestTickInfo>>> = vec![
-            Some(info.array_1_ticks),
-            info.array_2_ticks,
-            info.array_3_ticks,
-        ];
+        let array_ticks: Vec<Option<&Vec<TestTickInfo>>> =
+            vec![Some(info.array_1_ticks), info.array_2_ticks, info.array_3_ticks];
 
         let mut ref_mut_tick_arrays = Vec::with_capacity(3);
         let direction: i32 = if info.a_to_b { -1 } else { 1 };
 
         for (i, array) in array_ticks.iter().enumerate() {
             let array_index = <i32>::from(i as u16);
-            let array_start_tick_index = info.start_tick_index
-                + info.tick_spacing as i32 * TICK_ARRAY_SIZE * array_index * direction;
+            let array_start_tick_index =
+                info.start_tick_index + info.tick_spacing as i32 * TICK_ARRAY_SIZE * array_index * direction;
 
             let mut new_ta = TickArray {
                 start_tick_index: array_start_tick_index,
@@ -226,11 +224,7 @@ impl SwapTestFixture {
         .unwrap()
     }
 
-    pub fn eval(
-        &self,
-        tick_sequence: &mut SwapTickSequence,
-        next_timestamp: u64,
-    ) -> Result<PostSwapUpdate> {
+    pub fn eval(&self, tick_sequence: &mut SwapTickSequence, next_timestamp: u64) -> Result<PostSwapUpdate> {
         swap(
             &self.whirlpool,
             tick_sequence,

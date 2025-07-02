@@ -1,6 +1,4 @@
-use anchor_lang::prelude::*;
-
-use crate::state::WhirlpoolsConfig;
+use {crate::state::WhirlpoolsConfig, anchor_lang::prelude::*};
 
 #[derive(Accounts)]
 pub struct SetRewardEmissionsSuperAuthority<'info> {
@@ -17,8 +15,6 @@ pub struct SetRewardEmissionsSuperAuthority<'info> {
 pub fn handler(ctx: Context<SetRewardEmissionsSuperAuthority>) -> Result<()> {
     ctx.accounts
         .whirlpools_config
-        .update_reward_emissions_super_authority(
-            ctx.accounts.new_reward_emissions_super_authority.key(),
-        );
+        .update_reward_emissions_super_authority(ctx.accounts.new_reward_emissions_super_authority.key());
     Ok(())
 }

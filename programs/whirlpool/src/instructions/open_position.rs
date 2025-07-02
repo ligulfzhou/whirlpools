@@ -1,16 +1,19 @@
-use anchor_lang::prelude::*;
-use anchor_spl::associated_token::AssociatedToken;
-use anchor_spl::token::{self, Mint, Token, TokenAccount};
-
-use crate::state;
-use crate::{state::*, util::mint_position_token_and_remove_authority};
+use {
+    crate::{state, state::*, util::mint_position_token_and_remove_authority},
+    anchor_lang::prelude::*,
+    anchor_spl::{
+        associated_token::AssociatedToken,
+        token::{self, Mint, Token, TokenAccount},
+    },
+};
 
 #[derive(Accounts)]
 pub struct OpenPosition<'info> {
     #[account(mut)]
     pub funder: Signer<'info>,
 
-    /// CHECK: safe, the account that will be the owner of the position can be arbitrary
+    /// CHECK: safe, the account that will be the owner of the position can be
+    /// arbitrary
     pub owner: UncheckedAccount<'info>,
 
     #[account(init,
@@ -58,12 +61,7 @@ pub fn handler(
     let position_mint = &ctx.accounts.position_mint;
     let position = &mut ctx.accounts.position;
 
-    position.open_position(
-        whirlpool,
-        position_mint.key(),
-        tick_lower_index,
-        tick_upper_index,
-    )?;
+    position.open_position(whirlpool, position_mint.key(), tick_lower_index, tick_upper_index)?;
 
     mint_position_token_and_remove_authority(
         whirlpool,

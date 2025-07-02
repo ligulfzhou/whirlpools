@@ -1,7 +1,7 @@
-use std::convert::TryInto;
-
-use crate::errors::ErrorCode;
-use crate::math::*;
+use {
+    crate::{errors::ErrorCode, math::*},
+    std::convert::TryInto,
+};
 
 pub const NO_EXPLICIT_SQRT_PRICE_LIMIT: u128 = 0u128;
 
@@ -22,13 +22,17 @@ pub fn compute_swap(
     amount_specified_is_input: bool,
     a_to_b: bool,
 ) -> Result<SwapStepComputation, ErrorCode> {
-    // Since SplashPool (aka FullRange only pool) has only 2 initialized ticks at both ends,
-    // the possibility of exceeding u64 when calculating "delta amount" is higher than concentrated pools.
-    // This problem occurs with ExactIn.
-    // The reason is that in ExactOut, "fixed delta" never exceeds the amount of tokens present in the pool and is clearly within the u64 range.
-    // On the other hand, for ExactIn, "fixed delta" may exceed u64 because it calculates the amount of tokens needed to move the price to the end.
-    // However, the primary purpose of initial calculation of "fixed delta" is to determine whether or not the iteration is "max swap" or not.
-    // So the info that “the amount of tokens required exceeds the u64 range” is sufficient to determine that the iteration is NOT "max swap".
+    // Since SplashPool (aka FullRange only pool) has only 2 initialized ticks at
+    // both ends, the possibility of exceeding u64 when calculating "delta
+    // amount" is higher than concentrated pools. This problem occurs with
+    // ExactIn. The reason is that in ExactOut, "fixed delta" never exceeds the
+    // amount of tokens present in the pool and is clearly within the u64 range.
+    // On the other hand, for ExactIn, "fixed delta" may exceed u64 because it
+    // calculates the amount of tokens needed to move the price to the end.
+    // However, the primary purpose of initial calculation of "fixed delta" is to
+    // determine whether or not the iteration is "max swap" or not. So the info
+    // that “the amount of tokens required exceeds the u64 range” is sufficient to
+    // determine that the iteration is NOT "max swap".
     //
     // delta <= u64::MAX: AmountDeltaU64::Valid
     // delta >  u64::MAX: AmountDeltaU64::ExceedsMax
@@ -72,9 +76,11 @@ pub fn compute_swap(
         a_to_b,
     )?;
 
-    // If the swap is not at the max, we need to readjust the amount of the fixed token we are using
+    // If the swap is not at the max, we need to readjust the amount of the fixed
+    // token we are using
     let amount_fixed_delta = if !is_max_swap || initial_amount_fixed_delta.exceeds_max() {
-        // next_sqrt_price is calculated by get_next_sqrt_price and the result will be in the u64 range.
+        // next_sqrt_price is calculated by get_next_sqrt_price and the result will be
+        // in the u64 range.
         get_amount_fixed_delta(
             sqrt_price_current,
             next_sqrt_price,
@@ -191,10 +197,7 @@ fn get_amount_unfixed_delta(
 
 #[cfg(test)]
 mod fuzz_tests {
-    use crate::manager::fee_rate_manager::FEE_RATE_HARD_LIMIT;
-
-    use super::*;
-    use proptest::prelude::*;
+    use {super::*, crate::manager::fee_rate_manager::FEE_RATE_HARD_LIMIT, proptest::prelude::*};
 
     proptest! {
         #[test]
@@ -600,16 +603,14 @@ mod unit_tests {
             // Fee, reward growths
             //
             // Validate whirlpool values
-            // liquidity, tick, sqrt_price, fee_growth, reward, protocol fee, token amounts
+            // liquidity, tick, sqrt_price, fee_growth, reward, protocol fee,
+            // token amounts
         }
     }
 
     mod test_compute_swap {
         const TWO_PCT: u32 = 20000;
-        use std::convert::TryInto;
-
-        use super::*;
-        use crate::math::bit_math::Q64_RESOLUTION;
+        use {super::*, crate::math::bit_math::Q64_RESOLUTION, std::convert::TryInto};
 
         #[test]
         fn swap_a_to_b_input() {
@@ -620,9 +621,7 @@ mod unit_tests {
             let price_limit = 4;
 
             // Calculate fee given fee percentage
-            let fee_amount = div_round_up(amount * u128::from(TWO_PCT), 1_000_000)
-                .ok()
-                .unwrap();
+            let fee_amount = div_round_up(amount * u128::from(TWO_PCT), 1_000_000).ok().unwrap();
 
             // Calculate initial a and b given L and sqrt(P)
             let init_b = init_liq * init_price;
@@ -635,9 +634,7 @@ mod unit_tests {
             let new_a = init_a + amount_in;
 
             // Calculate next price
-            let next_price = div_round_up(init_liq << Q64_RESOLUTION, new_a)
-                .ok()
-                .unwrap();
+            let next_price = div_round_up(init_liq << Q64_RESOLUTION, new_a).ok().unwrap();
 
             // b - new_b
             let amount_out = init_b - div_round_up(init_liq * init_liq, new_a).ok().unwrap();

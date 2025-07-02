@@ -1,6 +1,7 @@
-use anchor_lang::prelude::*;
-
-use crate::state::{WhirlpoolsConfig, WhirlpoolsConfigExtension};
+use {
+    crate::state::{WhirlpoolsConfig, WhirlpoolsConfigExtension},
+    anchor_lang::prelude::*,
+};
 
 #[derive(Accounts)]
 pub struct SetConfigExtensionAuthority<'info> {
@@ -16,7 +17,8 @@ pub struct SetConfigExtensionAuthority<'info> {
     pub new_config_extension_authority: UncheckedAccount<'info>,
 }
 
-/// Set the config extension authority. Only the current config extension authority has permission to invoke this instruction.
+/// Set the config extension authority. Only the current config extension
+/// authority has permission to invoke this instruction.
 pub fn handler(ctx: Context<SetConfigExtensionAuthority>) -> Result<()> {
     ctx.accounts
         .whirlpools_config_extension

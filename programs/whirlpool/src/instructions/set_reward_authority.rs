@@ -1,6 +1,4 @@
-use anchor_lang::prelude::*;
-
-use crate::state::Whirlpool;
+use {crate::state::Whirlpool, anchor_lang::prelude::*};
 
 #[derive(Accounts)]
 #[instruction(reward_index: u8)]
@@ -16,8 +14,7 @@ pub struct SetRewardAuthority<'info> {
 }
 
 pub fn handler(ctx: Context<SetRewardAuthority>, reward_index: u8) -> Result<()> {
-    ctx.accounts.whirlpool.update_reward_authority(
-        reward_index as usize,
-        ctx.accounts.new_reward_authority.key(),
-    )
+    ctx.accounts
+        .whirlpool
+        .update_reward_authority(reward_index as usize, ctx.accounts.new_reward_authority.key())
 }

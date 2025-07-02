@@ -1,12 +1,13 @@
-use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Token, TokenAccount};
-
-use crate::{
-    errors::ErrorCode,
-    events::*,
-    manager::swap_manager::*,
-    state::{OracleAccessor, Whirlpool},
-    util::{to_timestamp_u64, update_and_swap_whirlpool, SparseSwapTickSequenceBuilder},
+use {
+    crate::{
+        errors::ErrorCode,
+        events::*,
+        manager::swap_manager::*,
+        state::{OracleAccessor, Whirlpool},
+        util::{to_timestamp_u64, update_and_swap_whirlpool, SparseSwapTickSequenceBuilder},
+    },
+    anchor_lang::prelude::*,
+    anchor_spl::token::{self, Token, TokenAccount},
 };
 
 #[derive(Accounts)]
@@ -42,7 +43,8 @@ pub struct Swap<'info> {
     pub tick_array_2: UncheckedAccount<'info>,
 
     #[account(seeds = [b"oracle", whirlpool.key().as_ref()], bump)]
-    /// CHECK: Oracle is currently unused and will be enabled on subsequent updates
+    /// CHECK: Oracle is currently unused and will be enabled on subsequent
+    /// updates
     pub oracle: UncheckedAccount<'info>,
     // Special notes to support pools with AdaptiveFee:
     // - For trades on pool using AdaptiveFee, pass oracle as writable accounts in the remaining accounts.
@@ -95,13 +97,13 @@ pub fn handler(
     )?;
 
     if amount_specified_is_input {
-        if (a_to_b && other_amount_threshold > swap_update.amount_b)
-            || (!a_to_b && other_amount_threshold > swap_update.amount_a)
+        if (a_to_b && other_amount_threshold > swap_update.amount_b) ||
+            (!a_to_b && other_amount_threshold > swap_update.amount_a)
         {
             return Err(ErrorCode::AmountOutBelowMinimum.into());
         }
-    } else if (a_to_b && other_amount_threshold < swap_update.amount_a)
-        || (!a_to_b && other_amount_threshold < swap_update.amount_b)
+    } else if (a_to_b && other_amount_threshold < swap_update.amount_a) ||
+        (!a_to_b && other_amount_threshold < swap_update.amount_b)
     {
         return Err(ErrorCode::AmountInAboveMaximum.into());
     }

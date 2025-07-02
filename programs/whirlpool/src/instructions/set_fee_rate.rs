@@ -1,6 +1,7 @@
-use anchor_lang::prelude::*;
-
-use crate::state::{Whirlpool, WhirlpoolsConfig};
+use {
+    crate::state::{Whirlpool, WhirlpoolsConfig},
+    anchor_lang::prelude::*,
+};
 
 #[derive(Accounts)]
 pub struct SetFeeRate<'info> {

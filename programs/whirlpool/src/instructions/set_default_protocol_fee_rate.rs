@@ -1,6 +1,4 @@
-use anchor_lang::prelude::*;
-
-use crate::state::WhirlpoolsConfig;
+use {crate::state::WhirlpoolsConfig, anchor_lang::prelude::*};
 
 #[derive(Accounts)]
 pub struct SetDefaultProtocolFeeRate<'info> {
@@ -11,10 +9,7 @@ pub struct SetDefaultProtocolFeeRate<'info> {
     pub fee_authority: Signer<'info>,
 }
 
-pub fn handler(
-    ctx: Context<SetDefaultProtocolFeeRate>,
-    default_protocol_fee_rate: u16,
-) -> Result<()> {
+pub fn handler(ctx: Context<SetDefaultProtocolFeeRate>, default_protocol_fee_rate: u16) -> Result<()> {
     ctx.accounts
         .whirlpools_config
         .update_default_protocol_fee_rate(default_protocol_fee_rate)

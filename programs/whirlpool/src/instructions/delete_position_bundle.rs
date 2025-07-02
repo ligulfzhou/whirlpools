@@ -1,9 +1,8 @@
-use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Mint, Token, TokenAccount};
-
-use crate::errors::ErrorCode;
-use crate::state::*;
-use crate::util::burn_and_close_position_bundle_token;
+use {
+    crate::{errors::ErrorCode, state::*, util::burn_and_close_position_bundle_token},
+    anchor_lang::prelude::*,
+    anchor_spl::token::{self, Mint, Token, TokenAccount},
+};
 
 #[derive(Accounts)]
 pub struct DeletePositionBundle<'info> {

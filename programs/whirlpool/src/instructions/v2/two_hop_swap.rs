@@ -1,18 +1,20 @@
-use anchor_lang::prelude::*;
-use anchor_spl::memo::Memo;
-use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
-
-use crate::swap_with_transfer_fee_extension;
-use crate::util::{
-    calculate_transfer_fee_excluded_amount, parse_remaining_accounts,
-    update_and_two_hop_swap_whirlpool_v2, AccountsType, RemainingAccountsInfo,
-};
-use crate::{
-    constants::transfer_memo,
-    errors::ErrorCode,
-    events::*,
-    state::{OracleAccessor, Whirlpool},
-    util::{to_timestamp_u64, SparseSwapTickSequenceBuilder},
+use {
+    crate::{
+        constants::transfer_memo,
+        errors::ErrorCode,
+        events::*,
+        state::{OracleAccessor, Whirlpool},
+        swap_with_transfer_fee_extension,
+        util::{
+            calculate_transfer_fee_excluded_amount, parse_remaining_accounts, to_timestamp_u64,
+            update_and_two_hop_swap_whirlpool_v2, AccountsType, RemainingAccountsInfo, SparseSwapTickSequenceBuilder,
+        },
+    },
+    anchor_lang::prelude::*,
+    anchor_spl::{
+        memo::Memo,
+        token_interface::{Mint, TokenAccount, TokenInterface},
+    },
 };
 
 #[derive(Accounts)]
@@ -84,11 +86,13 @@ pub struct TwoHopSwapV2<'info> {
     pub tick_array_two_2: UncheckedAccount<'info>,
 
     #[account(mut, seeds = [b"oracle", whirlpool_one.key().as_ref()], bump)]
-    /// CHECK: Oracle is currently unused and will be enabled on subsequent updates
+    /// CHECK: Oracle is currently unused and will be enabled on subsequent
+    /// updates
     pub oracle_one: UncheckedAccount<'info>,
 
     #[account(mut, seeds = [b"oracle", whirlpool_two.key().as_ref()], bump)]
-    /// CHECK: Oracle is currently unused and will be enabled on subsequent updates
+    /// CHECK: Oracle is currently unused and will be enabled on subsequent
+    /// updates
     pub oracle_two: UncheckedAccount<'info>,
 
     pub memo_program: Program<'info, Memo>,
@@ -176,22 +180,21 @@ pub fn handler<'info>(
     )?;
     let mut swap_tick_sequence_two = builder_two.build()?;
 
-    let oracle_accessor_one =
-        OracleAccessor::new(whirlpool_one, ctx.accounts.oracle_one.to_account_info())?;
+    let oracle_accessor_one = OracleAccessor::new(whirlpool_one, ctx.accounts.oracle_one.to_account_info())?;
     if !oracle_accessor_one.is_trade_enabled(timestamp)? {
         return Err(ErrorCode::TradeIsNotEnabled.into());
     }
     let adaptive_fee_info_one = oracle_accessor_one.get_adaptive_fee_info()?;
 
-    let oracle_accessor_two =
-        OracleAccessor::new(whirlpool_two, ctx.accounts.oracle_two.to_account_info())?;
+    let oracle_accessor_two = OracleAccessor::new(whirlpool_two, ctx.accounts.oracle_two.to_account_info())?;
     if !oracle_accessor_two.is_trade_enabled(timestamp)? {
         return Err(ErrorCode::TradeIsNotEnabled.into());
     }
     let adaptive_fee_info_two = oracle_accessor_two.get_adaptive_fee_info()?;
 
-    // TODO: WLOG, we could extend this to N-swaps, but the account inputs to the instruction would
-    // need to be jankier and we may need to programatically map/verify rather than using anchor constraints
+    // TODO: WLOG, we could extend this to N-swaps, but the account inputs to the
+    // instruction would need to be jankier and we may need to programatically
+    // map/verify rather than using anchor constraints
     let (swap_update_one, swap_update_two) = if amount_specified_is_input {
         // If the amount specified is input, this means we are doing exact-in
         // and the swap calculations occur from Swap 1 => Swap 2
@@ -247,9 +250,10 @@ pub fn handler<'info>(
         )?;
         (swap_calc_one, swap_calc_two)
     } else {
-        // If the amount specified is output, this means we need to invert the ordering of the calculations
-        // and the swap calculations occur from Swap 2 => Swap 1
-        // but the actual swaps occur from Swap 1 => Swap 2 (to ensure that the intermediate token exists in the account)
+        // If the amount specified is output, this means we need to invert the ordering
+        // of the calculations and the swap calculations occur from Swap 2 =>
+        // Swap 1 but the actual swaps occur from Swap 1 => Swap 2 (to ensure
+        // that the intermediate token exists in the account)
         let swap_calc_two = swap_with_transfer_fee_extension(
             whirlpool_two,
             if a_to_b_two {
@@ -273,17 +277,11 @@ pub fn handler<'info>(
 
         // The output of swap 1 is input of swap_calc_two
         let swap_one_output_amount = if a_to_b_two {
-            calculate_transfer_fee_excluded_amount(
-                &ctx.accounts.token_mint_intermediate,
-                swap_calc_two.amount_a,
-            )?
-            .amount
+            calculate_transfer_fee_excluded_amount(&ctx.accounts.token_mint_intermediate, swap_calc_two.amount_a)?
+                .amount
         } else {
-            calculate_transfer_fee_excluded_amount(
-                &ctx.accounts.token_mint_intermediate,
-                swap_calc_two.amount_b,
-            )?
-            .amount
+            calculate_transfer_fee_excluded_amount(&ctx.accounts.token_mint_intermediate, swap_calc_two.amount_b)?
+                .amount
         };
 
         let swap_calc_one = swap_with_transfer_fee_extension(
@@ -325,20 +323,12 @@ pub fn handler<'info>(
     }
 
     if amount_specified_is_input {
-        // If amount_specified_is_input == true, then we have a variable amount of output
-        // The slippage we care about is the output of the second swap.
+        // If amount_specified_is_input == true, then we have a variable amount of
+        // output The slippage we care about is the output of the second swap.
         let output_amount = if a_to_b_two {
-            calculate_transfer_fee_excluded_amount(
-                &ctx.accounts.token_mint_output,
-                swap_update_two.amount_b,
-            )?
-            .amount
+            calculate_transfer_fee_excluded_amount(&ctx.accounts.token_mint_output, swap_update_two.amount_b)?.amount
         } else {
-            calculate_transfer_fee_excluded_amount(
-                &ctx.accounts.token_mint_output,
-                swap_update_two.amount_a,
-            )?
-            .amount
+            calculate_transfer_fee_excluded_amount(&ctx.accounts.token_mint_output, swap_update_two.amount_a)?.amount
         };
 
         // If we have received less than the minimum out, throw an error
@@ -369,15 +359,10 @@ pub fn handler<'info>(
         (swap_update_one.amount_b, swap_update_one.amount_a)
     };
     let input_transfer_fee_one =
-        calculate_transfer_fee_excluded_amount(&ctx.accounts.token_mint_input, input_amount_one)?
-            .transfer_fee;
-    let output_transfer_fee_one = calculate_transfer_fee_excluded_amount(
-        &ctx.accounts.token_mint_intermediate,
-        output_amount_one,
-    )?
-    .transfer_fee;
-    let (lp_fee_one, protocol_fee_one) =
-        (swap_update_one.lp_fee, swap_update_one.next_protocol_fee);
+        calculate_transfer_fee_excluded_amount(&ctx.accounts.token_mint_input, input_amount_one)?.transfer_fee;
+    let output_transfer_fee_one =
+        calculate_transfer_fee_excluded_amount(&ctx.accounts.token_mint_intermediate, output_amount_one)?.transfer_fee;
+    let (lp_fee_one, protocol_fee_one) = (swap_update_one.lp_fee, swap_update_one.next_protocol_fee);
 
     let pre_sqrt_price_two = whirlpool_two.sqrt_price;
     let (input_amount_two, output_amount_two) = if a_to_b_two {
@@ -385,16 +370,11 @@ pub fn handler<'info>(
     } else {
         (swap_update_two.amount_b, swap_update_two.amount_a)
     };
-    let input_transfer_fee_two = calculate_transfer_fee_excluded_amount(
-        &ctx.accounts.token_mint_intermediate,
-        input_amount_two,
-    )?
-    .transfer_fee;
+    let input_transfer_fee_two =
+        calculate_transfer_fee_excluded_amount(&ctx.accounts.token_mint_intermediate, input_amount_two)?.transfer_fee;
     let output_transfer_fee_two =
-        calculate_transfer_fee_excluded_amount(&ctx.accounts.token_mint_output, output_amount_two)?
-            .transfer_fee;
-    let (lp_fee_two, protocol_fee_two) =
-        (swap_update_two.lp_fee, swap_update_two.next_protocol_fee);
+        calculate_transfer_fee_excluded_amount(&ctx.accounts.token_mint_output, output_amount_two)?.transfer_fee;
+    let (lp_fee_two, protocol_fee_two) = (swap_update_two.lp_fee, swap_update_two.next_protocol_fee);
 
     update_and_two_hop_swap_whirlpool_v2(
         &swap_update_one,

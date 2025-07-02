@@ -4,18 +4,14 @@ use anchor_lang::prelude::*;
 pub struct WhirlpoolsConfigExtension {
     pub whirlpools_config: Pubkey,          // 32
     pub config_extension_authority: Pubkey, // 32
-    pub token_badge_authority: Pubkey,      // 32
-                                            // 512 RESERVE
+    pub token_badge_authority: Pubkey,      /* 32
+                                             * 512 RESERVE */
 }
 
 impl WhirlpoolsConfigExtension {
     pub const LEN: usize = 8 + 32 + 32 + 32 + 512;
 
-    pub fn initialize(
-        &mut self,
-        whirlpools_config: Pubkey,
-        default_authority: Pubkey,
-    ) -> Result<()> {
+    pub fn initialize(&mut self, whirlpools_config: Pubkey, default_authority: Pubkey) -> Result<()> {
         self.whirlpools_config = whirlpools_config;
         self.config_extension_authority = default_authority;
         self.token_badge_authority = default_authority;
@@ -33,8 +29,7 @@ impl WhirlpoolsConfigExtension {
 
 #[cfg(test)]
 mod whirlpools_config_extension_initialize_tests {
-    use super::*;
-    use std::str::FromStr;
+    use {super::*, std::str::FromStr};
 
     #[test]
     fn test_initialize() {
@@ -44,27 +39,21 @@ mod whirlpools_config_extension_initialize_tests {
             token_badge_authority: Pubkey::default(),
         };
 
-        let whirlpools_config =
-            Pubkey::from_str("2LecshUwdy9xi7meFgHtFJQNSKk4KdTrcpvaB56dP2NQ").unwrap();
-        let default_authority =
-            Pubkey::from_str("orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE").unwrap();
+        let whirlpools_config = Pubkey::from_str("2LecshUwdy9xi7meFgHtFJQNSKk4KdTrcpvaB56dP2NQ").unwrap();
+        let default_authority = Pubkey::from_str("orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE").unwrap();
 
         let result = config_extension.initialize(whirlpools_config, default_authority);
         assert!(result.is_ok());
 
         assert_eq!(whirlpools_config, config_extension.whirlpools_config);
-        assert_eq!(
-            default_authority,
-            config_extension.config_extension_authority
-        );
+        assert_eq!(default_authority, config_extension.config_extension_authority);
         assert_eq!(default_authority, config_extension.token_badge_authority);
     }
 }
 
 #[cfg(test)]
 mod whirlpools_config_extension_update_tests {
-    use super::*;
-    use std::str::FromStr;
+    use {super::*, std::str::FromStr};
 
     #[test]
     fn test_update_config_extension_authority() {
@@ -74,15 +63,11 @@ mod whirlpools_config_extension_update_tests {
             token_badge_authority: Pubkey::default(),
         };
 
-        let config_extension_authority =
-            Pubkey::from_str("orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE").unwrap();
+        let config_extension_authority = Pubkey::from_str("orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE").unwrap();
 
         config_extension.update_config_extension_authority(config_extension_authority);
 
-        assert_eq!(
-            config_extension_authority,
-            config_extension.config_extension_authority
-        );
+        assert_eq!(config_extension_authority, config_extension.config_extension_authority);
         assert_eq!(Pubkey::default(), config_extension.token_badge_authority);
     }
 
@@ -94,27 +79,18 @@ mod whirlpools_config_extension_update_tests {
             token_badge_authority: Pubkey::default(),
         };
 
-        let token_badge_authority =
-            Pubkey::from_str("orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE").unwrap();
+        let token_badge_authority = Pubkey::from_str("orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE").unwrap();
 
         config_extension.update_token_badge_authority(token_badge_authority);
 
-        assert_eq!(
-            token_badge_authority,
-            config_extension.token_badge_authority
-        );
-        assert_eq!(
-            Pubkey::default(),
-            config_extension.config_extension_authority
-        );
+        assert_eq!(token_badge_authority, config_extension.token_badge_authority);
+        assert_eq!(Pubkey::default(), config_extension.config_extension_authority);
     }
 }
 
 #[cfg(test)]
 mod data_layout_tests {
-    use anchor_lang::Discriminator;
-
-    use super::*;
+    use {super::*, anchor_lang::Discriminator};
 
     #[test]
     fn test_whirlpools_config_extension_data_layout() {
@@ -125,17 +101,14 @@ mod data_layout_tests {
 
         let mut config_extension_data = [0u8; WhirlpoolsConfigExtension::LEN];
         let mut offset = 0;
-        config_extension_data[offset..offset + 8]
-            .copy_from_slice(&WhirlpoolsConfigExtension::discriminator());
+        config_extension_data[offset..offset + 8].copy_from_slice(&WhirlpoolsConfigExtension::discriminator());
         offset += 8;
-        config_extension_data[offset..offset + 32]
-            .copy_from_slice(&config_extension_whirlpools_config.to_bytes());
+        config_extension_data[offset..offset + 32].copy_from_slice(&config_extension_whirlpools_config.to_bytes());
         offset += 32;
         config_extension_data[offset..offset + 32]
             .copy_from_slice(&config_extension_config_extension_authority.to_bytes());
         offset += 32;
-        config_extension_data[offset..offset + 32]
-            .copy_from_slice(&config_extension_token_badge_authority.to_bytes());
+        config_extension_data[offset..offset + 32].copy_from_slice(&config_extension_token_badge_authority.to_bytes());
         offset += 32;
         config_extension_data[offset..offset + config_extension_reserved.len()]
             .copy_from_slice(&config_extension_reserved);
@@ -143,14 +116,9 @@ mod data_layout_tests {
         assert_eq!(offset, WhirlpoolsConfigExtension::LEN);
 
         // deserialize
-        let deserialized =
-            WhirlpoolsConfigExtension::try_deserialize(&mut config_extension_data.as_ref())
-                .unwrap();
+        let deserialized = WhirlpoolsConfigExtension::try_deserialize(&mut config_extension_data.as_ref()).unwrap();
 
-        assert_eq!(
-            config_extension_whirlpools_config,
-            deserialized.whirlpools_config
-        );
+        assert_eq!(config_extension_whirlpools_config, deserialized.whirlpools_config);
         assert_eq!(
             config_extension_config_extension_authority,
             deserialized.config_extension_authority

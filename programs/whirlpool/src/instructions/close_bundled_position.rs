@@ -1,8 +1,8 @@
-use anchor_lang::prelude::*;
-use anchor_spl::token::TokenAccount;
-
-use crate::errors::ErrorCode;
-use crate::{state::*, util::verify_position_bundle_authority};
+use {
+    crate::{errors::ErrorCode, state::*, util::verify_position_bundle_authority},
+    anchor_lang::prelude::*,
+    anchor_spl::token::TokenAccount,
+};
 
 #[derive(Accounts)]
 #[instruction(bundle_index: u16)]

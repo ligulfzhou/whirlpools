@@ -1,13 +1,13 @@
-use crate::{
-    errors::ErrorCode,
-    math::{
-        tick_index_from_sqrt_price, MAX_FEE_RATE, MAX_PROTOCOL_FEE_RATE, MAX_SQRT_PRICE_X64,
-        MIN_SQRT_PRICE_X64,
+use {
+    super::WhirlpoolsConfig,
+    crate::{
+        errors::ErrorCode,
+        math::{
+            tick_index_from_sqrt_price, MAX_FEE_RATE, MAX_PROTOCOL_FEE_RATE, MAX_SQRT_PRICE_X64, MIN_SQRT_PRICE_X64,
+        },
     },
+    anchor_lang::prelude::*,
 };
-use anchor_lang::prelude::*;
-
-use super::WhirlpoolsConfig;
 
 #[account]
 #[derive(Default)]
@@ -152,9 +152,7 @@ impl Whirlpool {
         self.token_vault_b = token_vault_b;
         self.fee_growth_global_b = 0;
 
-        self.reward_infos =
-            [WhirlpoolRewardInfo::new(whirlpools_config.reward_emissions_super_authority);
-                NUM_REWARDS];
+        self.reward_infos = [WhirlpoolRewardInfo::new(whirlpools_config.reward_emissions_super_authority); NUM_REWARDS];
 
         Ok(())
     }
@@ -163,7 +161,8 @@ impl Whirlpool {
     ///
     /// # Parameters
     /// - `reward_infos` - An array of all updated whirlpool rewards
-    /// - `reward_last_updated_timestamp` - The timestamp when the rewards were last updated
+    /// - `reward_last_updated_timestamp` - The timestamp when the rewards were
+    ///   last updated
     pub fn update_rewards(
         &mut self,
         reward_infos: [WhirlpoolRewardInfo; NUM_REWARDS],
@@ -289,22 +288,25 @@ impl Whirlpool {
     }
 }
 
-/// Stores the state relevant for tracking liquidity mining rewards at the `Whirlpool` level.
-/// These values are used in conjunction with `PositionRewardInfo`, `Tick.reward_growths_outside`,
-/// and `Whirlpool.reward_last_updated_timestamp` to determine how many rewards are earned by open
-/// positions.
+/// Stores the state relevant for tracking liquidity mining rewards at the
+/// `Whirlpool` level. These values are used in conjunction with
+/// `PositionRewardInfo`, `Tick.reward_growths_outside`, and `Whirlpool.
+/// reward_last_updated_timestamp` to determine how many rewards are earned by
+/// open positions.
 #[derive(Copy, Clone, AnchorSerialize, AnchorDeserialize, Default, Debug, PartialEq)]
 pub struct WhirlpoolRewardInfo {
     /// Reward token mint.
     pub mint: Pubkey,
     /// Reward vault token account.
     pub vault: Pubkey,
-    /// Authority account that has permission to initialize the reward and set emissions.
+    /// Authority account that has permission to initialize the reward and set
+    /// emissions.
     pub authority: Pubkey,
-    /// Q64.64 number that indicates how many tokens per second are earned per unit of liquidity.
+    /// Q64.64 number that indicates how many tokens per second are earned per
+    /// unit of liquidity.
     pub emissions_per_second_x64: u128,
-    /// Q64.64 number that tracks the total tokens earned per unit of liquidity since the reward
-    /// emissions were turned on.
+    /// Q64.64 number that tracks the total tokens earned per unit of liquidity
+    /// since the reward emissions were turned on.
     pub growth_global_x64: u128,
 }
 
@@ -324,9 +326,7 @@ impl WhirlpoolRewardInfo {
     }
 
     /// Maps all reward data to only the reward growth accumulators
-    pub fn to_reward_growths(
-        reward_infos: &[WhirlpoolRewardInfo; NUM_REWARDS],
-    ) -> [u128; NUM_REWARDS] {
+    pub fn to_reward_growths(reward_infos: &[WhirlpoolRewardInfo; NUM_REWARDS]) -> [u128; NUM_REWARDS] {
         let mut reward_growths = [0u128; NUM_REWARDS];
         for i in 0..NUM_REWARDS {
             reward_growths[i] = reward_infos[i].growth_global_x64;
@@ -454,9 +454,7 @@ pub mod whirlpool_builder {
 
 #[cfg(test)]
 mod data_layout_tests {
-    use anchor_lang::Discriminator;
-
-    use super::*;
+    use {super::*, anchor_lang::Discriminator};
 
     #[test]
     fn test_whirlpool_data_layout() {
@@ -494,11 +492,9 @@ mod data_layout_tests {
         offset += 32;
         reward_info_data[offset..offset + 32].copy_from_slice(&reward_info_authority.to_bytes());
         offset += 32;
-        reward_info_data[offset..offset + 16]
-            .copy_from_slice(&reward_info_emissions_per_second_x64.to_le_bytes());
+        reward_info_data[offset..offset + 16].copy_from_slice(&reward_info_emissions_per_second_x64.to_le_bytes());
         offset += 16;
-        reward_info_data[offset..offset + 16]
-            .copy_from_slice(&reward_info_growth_global_x64.to_le_bytes());
+        reward_info_data[offset..offset + 16].copy_from_slice(&reward_info_growth_global_x64.to_le_bytes());
         offset += 16;
         assert_eq!(offset, reward_info_data.len());
 
@@ -506,8 +502,7 @@ mod data_layout_tests {
         let mut offset = 0;
         whirlpool_data[offset..offset + 8].copy_from_slice(&Whirlpool::discriminator());
         offset += 8;
-        whirlpool_data[offset..offset + 32]
-            .copy_from_slice(&whirlpool_whirlpools_config.to_bytes());
+        whirlpool_data[offset..offset + 32].copy_from_slice(&whirlpool_whirlpools_config.to_bytes());
         offset += 32;
         whirlpool_data[offset..offset + 1].copy_from_slice(&whirlpool_bump.to_le_bytes());
         offset += 1;
@@ -517,42 +512,34 @@ mod data_layout_tests {
         offset += 2;
         whirlpool_data[offset..offset + 2].copy_from_slice(&whirlpool_fee_rate.to_le_bytes());
         offset += 2;
-        whirlpool_data[offset..offset + 2]
-            .copy_from_slice(&whirlpool_protocol_fee_rate.to_le_bytes());
+        whirlpool_data[offset..offset + 2].copy_from_slice(&whirlpool_protocol_fee_rate.to_le_bytes());
         offset += 2;
         whirlpool_data[offset..offset + 16].copy_from_slice(&whirlpool_liquidity.to_le_bytes());
         offset += 16;
         whirlpool_data[offset..offset + 16].copy_from_slice(&whirlpool_sqrt_price.to_le_bytes());
         offset += 16;
-        whirlpool_data[offset..offset + 4]
-            .copy_from_slice(&whirlpool_tick_current_index.to_le_bytes());
+        whirlpool_data[offset..offset + 4].copy_from_slice(&whirlpool_tick_current_index.to_le_bytes());
         offset += 4;
-        whirlpool_data[offset..offset + 8]
-            .copy_from_slice(&whirlpool_protocol_fee_owed_a.to_le_bytes());
+        whirlpool_data[offset..offset + 8].copy_from_slice(&whirlpool_protocol_fee_owed_a.to_le_bytes());
         offset += 8;
-        whirlpool_data[offset..offset + 8]
-            .copy_from_slice(&whirlpool_protocol_fee_owed_b.to_le_bytes());
+        whirlpool_data[offset..offset + 8].copy_from_slice(&whirlpool_protocol_fee_owed_b.to_le_bytes());
         offset += 8;
         whirlpool_data[offset..offset + 32].copy_from_slice(&whirlpool_token_mint_a.to_bytes());
         offset += 32;
         whirlpool_data[offset..offset + 32].copy_from_slice(&whirlpool_token_vault_a.to_bytes());
         offset += 32;
-        whirlpool_data[offset..offset + 16]
-            .copy_from_slice(&whirlpool_fee_growth_global_a.to_le_bytes());
+        whirlpool_data[offset..offset + 16].copy_from_slice(&whirlpool_fee_growth_global_a.to_le_bytes());
         offset += 16;
         whirlpool_data[offset..offset + 32].copy_from_slice(&whirlpool_token_mint_b.to_bytes());
         offset += 32;
         whirlpool_data[offset..offset + 32].copy_from_slice(&whirlpool_token_vault_b.to_bytes());
         offset += 32;
-        whirlpool_data[offset..offset + 16]
-            .copy_from_slice(&whirlpool_fee_growth_global_b.to_le_bytes());
+        whirlpool_data[offset..offset + 16].copy_from_slice(&whirlpool_fee_growth_global_b.to_le_bytes());
         offset += 16;
-        whirlpool_data[offset..offset + 8]
-            .copy_from_slice(&whirlpool_reward_last_updated_timestamp.to_le_bytes());
+        whirlpool_data[offset..offset + 8].copy_from_slice(&whirlpool_reward_last_updated_timestamp.to_le_bytes());
         offset += 8;
         for _ in 0..NUM_REWARDS {
-            whirlpool_data[offset..offset + reward_info_data.len()]
-                .copy_from_slice(&reward_info_data);
+            whirlpool_data[offset..offset + reward_info_data.len()].copy_from_slice(&reward_info_data);
             offset += reward_info_data.len();
         }
         assert_eq!(offset, whirlpool_data.len());
@@ -563,38 +550,20 @@ mod data_layout_tests {
         assert_eq!(deserialized.whirlpools_config, whirlpool_whirlpools_config);
         assert_eq!(deserialized.whirlpool_bump, [whirlpool_bump]);
         assert_eq!(deserialized.tick_spacing, whirlpool_tick_spacing);
-        assert_eq!(
-            deserialized.fee_tier_index_seed,
-            whirlpool_tick_spacing_seed
-        );
+        assert_eq!(deserialized.fee_tier_index_seed, whirlpool_tick_spacing_seed);
         assert_eq!(deserialized.fee_rate, whirlpool_fee_rate);
         assert_eq!(deserialized.protocol_fee_rate, whirlpool_protocol_fee_rate);
         assert_eq!(deserialized.liquidity, whirlpool_liquidity);
         assert_eq!(deserialized.sqrt_price, whirlpool_sqrt_price);
-        assert_eq!(
-            deserialized.tick_current_index,
-            whirlpool_tick_current_index
-        );
-        assert_eq!(
-            deserialized.protocol_fee_owed_a,
-            whirlpool_protocol_fee_owed_a
-        );
-        assert_eq!(
-            deserialized.protocol_fee_owed_b,
-            whirlpool_protocol_fee_owed_b
-        );
+        assert_eq!(deserialized.tick_current_index, whirlpool_tick_current_index);
+        assert_eq!(deserialized.protocol_fee_owed_a, whirlpool_protocol_fee_owed_a);
+        assert_eq!(deserialized.protocol_fee_owed_b, whirlpool_protocol_fee_owed_b);
         assert_eq!(deserialized.token_mint_a, whirlpool_token_mint_a);
         assert_eq!(deserialized.token_vault_a, whirlpool_token_vault_a);
-        assert_eq!(
-            deserialized.fee_growth_global_a,
-            whirlpool_fee_growth_global_a
-        );
+        assert_eq!(deserialized.fee_growth_global_a, whirlpool_fee_growth_global_a);
         assert_eq!(deserialized.token_mint_b, whirlpool_token_mint_b);
         assert_eq!(deserialized.token_vault_b, whirlpool_token_vault_b);
-        assert_eq!(
-            deserialized.fee_growth_global_b,
-            whirlpool_fee_growth_global_b
-        );
+        assert_eq!(deserialized.fee_growth_global_b, whirlpool_fee_growth_global_b);
         assert_eq!(
             deserialized.reward_last_updated_timestamp,
             whirlpool_reward_last_updated_timestamp
@@ -602,10 +571,7 @@ mod data_layout_tests {
         for i in 0..NUM_REWARDS {
             assert_eq!(deserialized.reward_infos[i].mint, reward_info_mint);
             assert_eq!(deserialized.reward_infos[i].vault, reward_info_vault);
-            assert_eq!(
-                deserialized.reward_infos[i].authority,
-                reward_info_authority
-            );
+            assert_eq!(deserialized.reward_infos[i].authority, reward_info_authority);
             assert_eq!(
                 deserialized.reward_infos[i].emissions_per_second_x64,
                 reward_info_emissions_per_second_x64

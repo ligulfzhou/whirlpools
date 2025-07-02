@@ -1,6 +1,7 @@
-use anchor_lang::prelude::*;
-
-use crate::state::{Whirlpool, WhirlpoolsConfig};
+use {
+    crate::state::{Whirlpool, WhirlpoolsConfig},
+    anchor_lang::prelude::*,
+};
 
 #[derive(Accounts)]
 #[instruction(reward_index: u8)]
@@ -18,10 +19,10 @@ pub struct SetRewardAuthorityBySuperAuthority<'info> {
 }
 
 /// Set the whirlpool reward authority at the provided `reward_index`.
-/// Only the current reward emissions super authority has permission to invoke this instruction.
+/// Only the current reward emissions super authority has permission to invoke
+/// this instruction.
 pub fn handler(ctx: Context<SetRewardAuthorityBySuperAuthority>, reward_index: u8) -> Result<()> {
-    ctx.accounts.whirlpool.update_reward_authority(
-        reward_index as usize,
-        ctx.accounts.new_reward_authority.key(),
-    )
+    ctx.accounts
+        .whirlpool
+        .update_reward_authority(reward_index as usize, ctx.accounts.new_reward_authority.key())
 }

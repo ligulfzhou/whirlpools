@@ -1,14 +1,17 @@
-use crate::state::*;
-use crate::util::build_position_token_metadata;
-use anchor_lang::prelude::*;
-use anchor_spl::associated_token::AssociatedToken;
-use anchor_spl::token_2022::spl_token_2022;
-use anchor_spl::token_2022::Token2022;
-
-use crate::constants::nft::whirlpool_nft_update_auth::ID as WP_NFT_UPDATE_AUTH;
-use crate::util::{
-    initialize_position_mint_2022, initialize_position_token_account_2022,
-    initialize_token_metadata_extension, mint_position_token_2022_and_remove_authority,
+use {
+    crate::{
+        constants::nft::whirlpool_nft_update_auth::ID as WP_NFT_UPDATE_AUTH,
+        state::*,
+        util::{
+            build_position_token_metadata, initialize_position_mint_2022, initialize_position_token_account_2022,
+            initialize_token_metadata_extension, mint_position_token_2022_and_remove_authority,
+        },
+    },
+    anchor_lang::prelude::*,
+    anchor_spl::{
+        associated_token::AssociatedToken,
+        token_2022::{spl_token_2022, Token2022},
+    },
 };
 
 #[derive(Accounts)]
@@ -16,7 +19,8 @@ pub struct OpenPositionWithTokenExtensions<'info> {
     #[account(mut)]
     pub funder: Signer<'info>,
 
-    /// CHECK: safe, the account that will be the owner of the position can be arbitrary
+    /// CHECK: safe, the account that will be the owner of the position can be
+    /// arbitrary
     pub owner: UncheckedAccount<'info>,
 
     #[account(init,
@@ -60,18 +64,9 @@ pub fn handler(
     let position_mint = &ctx.accounts.position_mint;
     let position = &mut ctx.accounts.position;
 
-    let position_seeds = [
-        b"position".as_ref(),
-        position_mint.key.as_ref(),
-        &[ctx.bumps.position],
-    ];
+    let position_seeds = [b"position".as_ref(), position_mint.key.as_ref(), &[ctx.bumps.position]];
 
-    position.open_position(
-        whirlpool,
-        position_mint.key(),
-        tick_lower_index,
-        tick_upper_index,
-    )?;
+    position.open_position(whirlpool, position_mint.key(), tick_lower_index, tick_upper_index)?;
 
     initialize_position_mint_2022(
         position_mint,

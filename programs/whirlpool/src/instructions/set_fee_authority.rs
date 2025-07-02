@@ -1,6 +1,4 @@
-use anchor_lang::prelude::*;
-
-use crate::state::WhirlpoolsConfig;
+use {crate::state::WhirlpoolsConfig, anchor_lang::prelude::*};
 
 #[derive(Accounts)]
 pub struct SetFeeAuthority<'info> {
@@ -14,7 +12,8 @@ pub struct SetFeeAuthority<'info> {
     pub new_fee_authority: UncheckedAccount<'info>,
 }
 
-/// Set the fee authority. Only the current fee authority has permission to invoke this instruction.
+/// Set the fee authority. Only the current fee authority has permission to
+/// invoke this instruction.
 pub fn handler(ctx: Context<SetFeeAuthority>) -> Result<()> {
     ctx.accounts
         .whirlpools_config

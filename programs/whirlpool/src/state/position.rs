@@ -1,8 +1,8 @@
-use anchor_lang::prelude::*;
-
-use crate::{errors::ErrorCode, math::FULL_RANGE_ONLY_TICK_SPACING_THRESHOLD, state::NUM_REWARDS};
-
-use super::{Tick, Whirlpool};
+use {
+    super::{Tick, Whirlpool},
+    crate::{errors::ErrorCode, math::FULL_RANGE_ONLY_TICK_SPACING_THRESHOLD, state::NUM_REWARDS},
+    anchor_lang::prelude::*,
+};
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Default, Copy)]
 pub struct OpenPositionBumps {
@@ -86,22 +86,21 @@ impl Position {
         new_tick_lower_index: i32,
         new_tick_upper_index: i32,
     ) -> Result<()> {
-        // Because locked liquidity rejects positions with 0 liquidity, this check will also reject locked positions
+        // Because locked liquidity rejects positions with 0 liquidity, this check will
+        // also reject locked positions
         if !Position::is_position_empty(self) {
             return Err(ErrorCode::ClosePositionNotEmpty.into());
         }
 
-        if new_tick_lower_index == self.tick_lower_index
-            && new_tick_upper_index == self.tick_upper_index
-        {
+        if new_tick_lower_index == self.tick_lower_index && new_tick_upper_index == self.tick_upper_index {
             return Err(ErrorCode::SameTickRangeNotAllowed.into());
         }
 
         validate_tick_range_for_whirlpool(whirlpool, new_tick_lower_index, new_tick_upper_index)?;
 
         // Wihle we could theoretically update the whirlpool here
-        // For Token Extensions positions, the NFT metadata contains the whirlpool address
-        // so it could introduce some inconsistency
+        // For Token Extensions positions, the NFT metadata contains the whirlpool
+        // address so it could introduce some inconsistency
 
         // Set new tick ranges
         self.tick_lower_index = new_tick_lower_index;
@@ -125,19 +124,17 @@ fn validate_tick_range_for_whirlpool(
     tick_lower_index: i32,
     tick_upper_index: i32,
 ) -> Result<()> {
-    if !Tick::check_is_usable_tick(tick_lower_index, whirlpool.tick_spacing)
-        || !Tick::check_is_usable_tick(tick_upper_index, whirlpool.tick_spacing)
-        || tick_lower_index >= tick_upper_index
+    if !Tick::check_is_usable_tick(tick_lower_index, whirlpool.tick_spacing) ||
+        !Tick::check_is_usable_tick(tick_upper_index, whirlpool.tick_spacing) ||
+        tick_lower_index >= tick_upper_index
     {
         return Err(ErrorCode::InvalidTickIndex.into());
     }
 
     // On tick spacing >= 2^15, should only be able to open full range positions
     if whirlpool.tick_spacing >= FULL_RANGE_ONLY_TICK_SPACING_THRESHOLD {
-        let (full_range_lower_index, full_range_upper_index) =
-            Tick::full_range_indexes(whirlpool.tick_spacing);
-        if tick_lower_index != full_range_lower_index || tick_upper_index != full_range_upper_index
-        {
+        let (full_range_lower_index, full_range_upper_index) = Tick::full_range_indexes(whirlpool.tick_spacing);
+        if tick_lower_index != full_range_lower_index || tick_upper_index != full_range_upper_index {
             return Err(ErrorCode::FullRangeOnlyPool.into());
         }
     }
@@ -164,8 +161,7 @@ pub struct PositionUpdate {
 
 #[cfg(test)]
 mod is_position_empty_tests {
-    use super::*;
-    use crate::constants::test_constants::*;
+    use {super::*, crate::constants::test_constants::*};
 
     pub fn build_test_position(
         liquidity: u128,
@@ -247,10 +243,11 @@ mod is_position_empty_tests {
 
 #[cfg(test)]
 pub mod position_builder {
-    use anchor_lang::prelude::Pubkey;
-
-    use super::{Position, PositionRewardInfo};
-    use crate::state::NUM_REWARDS;
+    use {
+        super::{Position, PositionRewardInfo},
+        crate::state::NUM_REWARDS,
+        anchor_lang::prelude::Pubkey,
+    };
 
     #[derive(Default)]
     pub struct PositionBuilder {
@@ -334,9 +331,7 @@ pub mod position_builder {
 
 #[cfg(test)]
 mod data_layout_tests {
-    use anchor_lang::Discriminator;
-
-    use super::*;
+    use {super::*, anchor_lang::Discriminator};
 
     #[test]
     fn test_position_data_layout() {
@@ -359,8 +354,7 @@ mod data_layout_tests {
         position_reward_data[offset..offset + 16]
             .copy_from_slice(&position_reward_info_growth_inside_checkpoint.to_le_bytes());
         offset += 16;
-        position_reward_data[offset..offset + 8]
-            .copy_from_slice(&position_reward_info_amount_owed.to_le_bytes());
+        position_reward_data[offset..offset + 8].copy_from_slice(&position_reward_info_amount_owed.to_le_bytes());
 
         let mut position_data = [0u8; Position::LEN];
         let mut offset = 0;
@@ -376,19 +370,16 @@ mod data_layout_tests {
         offset += 4;
         position_data[offset..offset + 4].copy_from_slice(&position_tick_upper_index.to_le_bytes());
         offset += 4;
-        position_data[offset..offset + 16]
-            .copy_from_slice(&position_fee_growth_checkpoint_a.to_le_bytes());
+        position_data[offset..offset + 16].copy_from_slice(&position_fee_growth_checkpoint_a.to_le_bytes());
         offset += 16;
         position_data[offset..offset + 8].copy_from_slice(&position_fee_owed_a.to_le_bytes());
         offset += 8;
-        position_data[offset..offset + 16]
-            .copy_from_slice(&position_fee_growth_checkpoint_b.to_le_bytes());
+        position_data[offset..offset + 16].copy_from_slice(&position_fee_growth_checkpoint_b.to_le_bytes());
         offset += 16;
         position_data[offset..offset + 8].copy_from_slice(&position_fee_owed_b.to_le_bytes());
         offset += 8;
         for _ in 0..NUM_REWARDS {
-            position_data[offset..offset + position_reward_data.len()]
-                .copy_from_slice(&position_reward_data);
+            position_data[offset..offset + position_reward_data.len()].copy_from_slice(&position_reward_data);
             offset += position_reward_data.len();
         }
         assert_eq!(offset, Position::LEN);
@@ -401,15 +392,9 @@ mod data_layout_tests {
         assert_eq!(position_liquidity, deserialized.liquidity);
         assert_eq!(position_tick_lower_index, deserialized.tick_lower_index);
         assert_eq!(position_tick_upper_index, deserialized.tick_upper_index);
-        assert_eq!(
-            position_fee_growth_checkpoint_a,
-            deserialized.fee_growth_checkpoint_a
-        );
+        assert_eq!(position_fee_growth_checkpoint_a, deserialized.fee_growth_checkpoint_a);
         assert_eq!(position_fee_owed_a, deserialized.fee_owed_a);
-        assert_eq!(
-            position_fee_growth_checkpoint_b,
-            deserialized.fee_growth_checkpoint_b
-        );
+        assert_eq!(position_fee_growth_checkpoint_b, deserialized.fee_growth_checkpoint_b);
         assert_eq!(position_fee_owed_b, deserialized.fee_owed_b);
         for i in 0..NUM_REWARDS {
             assert_eq!(

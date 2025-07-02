@@ -50,25 +50,24 @@ pub fn next_tick_modify_liquidity_update(
         return Ok(TickUpdate::default());
     }
 
-    let (fee_growth_outside_a, fee_growth_outside_b, reward_growths_outside) =
-        if tick.liquidity_gross == 0 {
-            // By convention, assume all prior growth happened below the tick
-            if tick_current_index >= tick_index {
-                (
-                    fee_growth_global_a,
-                    fee_growth_global_b,
-                    WhirlpoolRewardInfo::to_reward_growths(reward_infos),
-                )
-            } else {
-                (0, 0, [0; NUM_REWARDS])
-            }
-        } else {
+    let (fee_growth_outside_a, fee_growth_outside_b, reward_growths_outside) = if tick.liquidity_gross == 0 {
+        // By convention, assume all prior growth happened below the tick
+        if tick_current_index >= tick_index {
             (
-                tick.fee_growth_outside_a,
-                tick.fee_growth_outside_b,
-                tick.reward_growths_outside,
+                fee_growth_global_a,
+                fee_growth_global_b,
+                WhirlpoolRewardInfo::to_reward_growths(reward_infos),
             )
-        };
+        } else {
+            (0, 0, [0; NUM_REWARDS])
+        }
+    } else {
+        (
+            tick.fee_growth_outside_a,
+            tick.fee_growth_outside_b,
+            tick.reward_growths_outside,
+        )
+    };
 
     let liquidity_net = if is_upper_tick {
         tick.liquidity_net
@@ -101,7 +100,8 @@ pub fn next_fee_growths_inside(
     fee_growth_global_a: u128,
     fee_growth_global_b: u128,
 ) -> (u128, u128) {
-    // By convention, when initializing a tick, all fees have been earned below the tick.
+    // By convention, when initializing a tick, all fees have been earned below the
+    // tick.
     let (fee_growth_below_a, fee_growth_below_b) = if !tick_lower.initialized {
         (fee_growth_global_a, fee_growth_global_b)
     } else if tick_current_index < tick_lower_index {
@@ -110,20 +110,15 @@ pub fn next_fee_growths_inside(
             fee_growth_global_b.wrapping_sub(tick_lower.fee_growth_outside_b),
         )
     } else {
-        (
-            tick_lower.fee_growth_outside_a,
-            tick_lower.fee_growth_outside_b,
-        )
+        (tick_lower.fee_growth_outside_a, tick_lower.fee_growth_outside_b)
     };
 
-    // By convention, when initializing a tick, no fees have been earned above the tick.
+    // By convention, when initializing a tick, no fees have been earned above the
+    // tick.
     let (fee_growth_above_a, fee_growth_above_b) = if !tick_upper.initialized {
         (0, 0)
     } else if tick_current_index < tick_upper_index {
-        (
-            tick_upper.fee_growth_outside_a,
-            tick_upper.fee_growth_outside_b,
-        )
+        (tick_upper.fee_growth_outside_a, tick_upper.fee_growth_outside_b)
     } else {
         (
             fee_growth_global_a.wrapping_sub(tick_upper.fee_growth_outside_a),
@@ -141,8 +136,9 @@ pub fn next_fee_growths_inside(
     )
 }
 
-// Calculates the reward growths inside of tick_lower and tick_upper based on their positions
-// relative to tick_current_index. An uninitialized reward will always have a reward growth of zero.
+// Calculates the reward growths inside of tick_lower and tick_upper based on
+// their positions relative to tick_current_index. An uninitialized reward will
+// always have a reward growth of zero.
 pub fn next_reward_growths_inside(
     tick_current_index: i32,
     tick_lower: &Tick,
@@ -191,19 +187,18 @@ pub fn next_reward_growths_inside(
 
 #[cfg(test)]
 mod tick_manager_tests {
-    use anchor_lang::prelude::Pubkey;
-
-    use crate::{
-        errors::ErrorCode,
-        manager::tick_manager::{
-            next_fee_growths_inside, next_tick_cross_update, next_tick_modify_liquidity_update,
-            TickUpdate,
+    use {
+        super::next_reward_growths_inside,
+        crate::{
+            errors::ErrorCode,
+            manager::tick_manager::{
+                next_fee_growths_inside, next_tick_cross_update, next_tick_modify_liquidity_update, TickUpdate,
+            },
+            math::Q64_RESOLUTION,
+            state::{tick_builder::TickBuilder, Tick, WhirlpoolRewardInfo, NUM_REWARDS},
         },
-        math::Q64_RESOLUTION,
-        state::{tick_builder::TickBuilder, Tick, WhirlpoolRewardInfo, NUM_REWARDS},
+        anchor_lang::prelude::Pubkey,
     };
-
-    use super::next_reward_growths_inside;
 
     fn create_test_whirlpool_reward_info(
         emissions_per_second_x64: u128,
@@ -524,11 +519,7 @@ mod tick_manager_tests {
                     liquidity_gross: 42069,
                     fee_growth_outside_a: 100,
                     fee_growth_outside_b: 100,
-                    reward_growths_outside: [
-                        100 << Q64_RESOLUTION,
-                        100 << Q64_RESOLUTION,
-                        100 << Q64_RESOLUTION,
-                    ],
+                    reward_growths_outside: [100 << Q64_RESOLUTION, 100 << Q64_RESOLUTION, 100 << Q64_RESOLUTION],
                 },
             },
             Test {
@@ -565,7 +556,7 @@ mod tick_manager_tests {
                 is_upper_tick: true,
                 expected_update: TickUpdate {
                     initialized: true,
-                    liquidity_net:57931,
+                    liquidity_net: 57931,
                     liquidity_gross: 142069,
                     ..Default::default()
                 },
@@ -641,18 +632,14 @@ mod tick_manager_tests {
                 fee_growth_global_a: 100,
                 fee_growth_global_b: 100,
                 reward_infos: [
-                    WhirlpoolRewardInfo{
-                        ..Default::default()
-                    },
-                    WhirlpoolRewardInfo{
+                    WhirlpoolRewardInfo { ..Default::default() },
+                    WhirlpoolRewardInfo {
                         mint: Pubkey::new_unique(),
                         emissions_per_second_x64: 1,
                         growth_global_x64: 250,
                         ..Default::default()
                     },
-                    WhirlpoolRewardInfo{
-                        ..Default::default()
-                    }
+                    WhirlpoolRewardInfo { ..Default::default() },
                 ],
                 expected_update: TickUpdate {
                     initialized: true,
@@ -660,9 +647,9 @@ mod tick_manager_tests {
                     fee_growth_outside_b: 100,
                     liquidity_net: 42069,
                     liquidity_gross: 42069,
-                    reward_growths_outside: [0, 250, 0]
+                    reward_growths_outside: [0, 250, 0],
                 },
-            }
+            },
         ] {
             // System under test
             let update = next_tick_modify_liquidity_update(

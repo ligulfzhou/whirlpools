@@ -1,13 +1,18 @@
-use crate::state::{PositionBundle, Whirlpool};
-use anchor_lang::prelude::*;
-use anchor_spl::metadata::{self, mpl_token_metadata::types::DataV2, CreateMetadataAccountsV3};
-use anchor_spl::token::{self, Mint, Token, TokenAccount, Transfer};
-use solana_program::program::invoke_signed;
-use spl_token::instruction::{burn_checked, close_account, mint_to, set_authority, AuthorityType};
-
-use crate::constants::nft::{
-    WPB_METADATA_NAME_PREFIX, WPB_METADATA_SYMBOL, WPB_METADATA_URI, WP_METADATA_NAME,
-    WP_METADATA_SYMBOL, WP_METADATA_URI,
+use {
+    crate::{
+        constants::nft::{
+            WPB_METADATA_NAME_PREFIX, WPB_METADATA_SYMBOL, WPB_METADATA_URI, WP_METADATA_NAME, WP_METADATA_SYMBOL,
+            WP_METADATA_URI,
+        },
+        state::{PositionBundle, Whirlpool},
+    },
+    anchor_lang::prelude::*,
+    anchor_spl::{
+        metadata::{self, mpl_token_metadata::types::DataV2, CreateMetadataAccountsV3},
+        token::{self, Mint, Token, TokenAccount, Transfer},
+    },
+    solana_program::program::invoke_signed,
+    spl_token::instruction::{burn_checked, close_account, mint_to, set_authority, AuthorityType},
 };
 
 pub fn transfer_from_owner_to_vault<'info>(
@@ -104,12 +109,7 @@ pub fn mint_position_token_and_remove_authority<'info>(
     position_token_account: &Account<'info, TokenAccount>,
     token_program: &Program<'info, Token>,
 ) -> Result<()> {
-    mint_position_token(
-        whirlpool,
-        position_mint,
-        position_token_account,
-        token_program,
-    )?;
+    mint_position_token(whirlpool, position_mint, position_token_account, token_program)?;
     remove_position_token_mint_authority(whirlpool, position_mint, token_program)
 }
 
@@ -126,12 +126,7 @@ pub fn mint_position_token_with_metadata_and_remove_authority<'info>(
     system_program: &Program<'info, System>,
     rent: &Sysvar<'info, Rent>,
 ) -> Result<()> {
-    mint_position_token(
-        whirlpool,
-        position_mint,
-        position_token_account,
-        token_program,
-    )?;
+    mint_position_token(whirlpool, position_mint, position_token_account, token_program)?;
 
     let metadata_mint_auth_account = whirlpool;
     metadata::create_metadata_accounts_v3(

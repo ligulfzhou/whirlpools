@@ -1,5 +1,4 @@
-use crate::errors::ErrorCode;
-use anchor_lang::prelude::*;
+use {crate::errors::ErrorCode, anchor_lang::prelude::*};
 
 pub const POSITION_BITMAP_USIZE: usize = 32;
 pub const POSITION_BUNDLE_SIZE: u16 = 8 * POSITION_BITMAP_USIZE as u16;
@@ -8,8 +7,8 @@ pub const POSITION_BUNDLE_SIZE: u16 = 8 * POSITION_BITMAP_USIZE as u16;
 #[derive(Default)]
 pub struct PositionBundle {
     pub position_bundle_mint: Pubkey, // 32
-    pub position_bitmap: [u8; POSITION_BITMAP_USIZE], // 32
-                                      // 64 RESERVE
+    pub position_bitmap: [u8; POSITION_BITMAP_USIZE], /* 32
+                                       * 64 RESERVE */
 }
 
 impl PositionBundle {
@@ -75,14 +74,11 @@ impl PositionBundle {
 
 #[cfg(test)]
 mod position_bundle_initialize_tests {
-    use super::*;
-    use std::str::FromStr;
+    use {super::*, std::str::FromStr};
 
     #[test]
     fn test_default() {
-        let position_bundle = PositionBundle {
-            ..Default::default()
-        };
+        let position_bundle = PositionBundle { ..Default::default() };
         assert_eq!(position_bundle.position_bundle_mint, Pubkey::default());
         for bitmap in position_bundle.position_bitmap.iter() {
             assert_eq!(*bitmap, 0);
@@ -91,11 +87,8 @@ mod position_bundle_initialize_tests {
 
     #[test]
     fn test_initialize() {
-        let mut position_bundle = PositionBundle {
-            ..Default::default()
-        };
-        let position_bundle_mint =
-            Pubkey::from_str("orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE").unwrap();
+        let mut position_bundle = PositionBundle { ..Default::default() };
+        let position_bundle_mint = Pubkey::from_str("orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE").unwrap();
 
         let result = position_bundle.initialize(position_bundle_mint);
         assert!(result.is_ok());
@@ -113,17 +106,13 @@ mod position_bundle_is_deletable_tests {
 
     #[test]
     fn test_default_is_deletable() {
-        let position_bundle = PositionBundle {
-            ..Default::default()
-        };
+        let position_bundle = PositionBundle { ..Default::default() };
         assert!(position_bundle.is_deletable());
     }
 
     #[test]
     fn test_each_bit_detectable() {
-        let mut position_bundle = PositionBundle {
-            ..Default::default()
-        };
+        let mut position_bundle = PositionBundle { ..Default::default() };
         for bundle_index in 0..POSITION_BUNDLE_SIZE {
             let index = bundle_index / 8;
             let offset = bundle_index % 8;
@@ -141,9 +130,7 @@ mod position_bundle_open_and_close_tests {
 
     #[test]
     fn test_open_and_close_zero() {
-        let mut position_bundle = PositionBundle {
-            ..Default::default()
-        };
+        let mut position_bundle = PositionBundle { ..Default::default() };
 
         let r1 = position_bundle.open_bundled_position(0);
         assert!(r1.is_ok());
@@ -156,9 +143,7 @@ mod position_bundle_open_and_close_tests {
 
     #[test]
     fn test_open_and_close_middle() {
-        let mut position_bundle = PositionBundle {
-            ..Default::default()
-        };
+        let mut position_bundle = PositionBundle { ..Default::default() };
 
         let r1 = position_bundle.open_bundled_position(130);
         assert!(r1.is_ok());
@@ -171,30 +156,20 @@ mod position_bundle_open_and_close_tests {
 
     #[test]
     fn test_open_and_close_max() {
-        let mut position_bundle = PositionBundle {
-            ..Default::default()
-        };
+        let mut position_bundle = PositionBundle { ..Default::default() };
 
         let r1 = position_bundle.open_bundled_position(POSITION_BUNDLE_SIZE - 1);
         assert!(r1.is_ok());
-        assert_eq!(
-            position_bundle.position_bitmap[POSITION_BITMAP_USIZE - 1],
-            128
-        );
+        assert_eq!(position_bundle.position_bitmap[POSITION_BITMAP_USIZE - 1], 128);
 
         let r2 = position_bundle.close_bundled_position(POSITION_BUNDLE_SIZE - 1);
         assert!(r2.is_ok());
-        assert_eq!(
-            position_bundle.position_bitmap[POSITION_BITMAP_USIZE - 1],
-            0
-        );
+        assert_eq!(position_bundle.position_bitmap[POSITION_BITMAP_USIZE - 1], 0);
     }
 
     #[test]
     fn test_double_open_should_be_failed() {
-        let mut position_bundle = PositionBundle {
-            ..Default::default()
-        };
+        let mut position_bundle = PositionBundle { ..Default::default() };
 
         let r1 = position_bundle.open_bundled_position(0);
         assert!(r1.is_ok());
@@ -205,9 +180,7 @@ mod position_bundle_open_and_close_tests {
 
     #[test]
     fn test_double_close_should_be_failed() {
-        let mut position_bundle = PositionBundle {
-            ..Default::default()
-        };
+        let mut position_bundle = PositionBundle { ..Default::default() };
 
         let r1 = position_bundle.open_bundled_position(0);
         assert!(r1.is_ok());
@@ -221,9 +194,7 @@ mod position_bundle_open_and_close_tests {
 
     #[test]
     fn test_all_open_and_all_close() {
-        let mut position_bundle = PositionBundle {
-            ..Default::default()
-        };
+        let mut position_bundle = PositionBundle { ..Default::default() };
 
         for bundle_index in 0..POSITION_BUNDLE_SIZE {
             let r = position_bundle.open_bundled_position(bundle_index);
@@ -246,9 +217,7 @@ mod position_bundle_open_and_close_tests {
 
     #[test]
     fn test_open_bundle_index_out_of_bounds() {
-        let mut position_bundle = PositionBundle {
-            ..Default::default()
-        };
+        let mut position_bundle = PositionBundle { ..Default::default() };
 
         for bundle_index in POSITION_BUNDLE_SIZE..u16::MAX {
             let r = position_bundle.open_bundled_position(bundle_index);
@@ -258,9 +227,7 @@ mod position_bundle_open_and_close_tests {
 
     #[test]
     fn test_close_bundle_index_out_of_bounds() {
-        let mut position_bundle = PositionBundle {
-            ..Default::default()
-        };
+        let mut position_bundle = PositionBundle { ..Default::default() };
 
         for bundle_index in POSITION_BUNDLE_SIZE..u16::MAX {
             let r = position_bundle.close_bundled_position(bundle_index);
@@ -271,9 +238,7 @@ mod position_bundle_open_and_close_tests {
 
 #[cfg(test)]
 mod data_layout_tests {
-    use anchor_lang::Discriminator;
-
-    use super::*;
+    use {super::*, anchor_lang::Discriminator};
 
     #[test]
     fn test_position_bundle_data_layout() {
@@ -285,11 +250,9 @@ mod data_layout_tests {
         let mut offset = 0;
         position_bundle_data[offset..offset + 8].copy_from_slice(&PositionBundle::discriminator());
         offset += 8;
-        position_bundle_data[offset..offset + 32]
-            .copy_from_slice(&position_bundle_position_bundle_mint.to_bytes());
+        position_bundle_data[offset..offset + 32].copy_from_slice(&position_bundle_position_bundle_mint.to_bytes());
         offset += 32;
-        position_bundle_data[offset..offset + POSITION_BITMAP_USIZE]
-            .copy_from_slice(&position_bundle_position_bitmap);
+        position_bundle_data[offset..offset + POSITION_BITMAP_USIZE].copy_from_slice(&position_bundle_position_bitmap);
         offset += POSITION_BITMAP_USIZE;
         position_bundle_data[offset..offset + position_bundle_reserved.len()]
             .copy_from_slice(&position_bundle_reserved);
@@ -297,17 +260,10 @@ mod data_layout_tests {
         assert_eq!(offset, PositionBundle::LEN);
 
         // deserialize
-        let deserialized =
-            PositionBundle::try_deserialize(&mut position_bundle_data.as_ref()).unwrap();
+        let deserialized = PositionBundle::try_deserialize(&mut position_bundle_data.as_ref()).unwrap();
 
-        assert_eq!(
-            position_bundle_position_bundle_mint,
-            deserialized.position_bundle_mint
-        );
-        assert_eq!(
-            position_bundle_position_bitmap,
-            deserialized.position_bitmap
-        );
+        assert_eq!(position_bundle_position_bundle_mint, deserialized.position_bundle_mint);
+        assert_eq!(position_bundle_position_bitmap, deserialized.position_bitmap);
 
         // serialize
         let mut serialized = Vec::new();

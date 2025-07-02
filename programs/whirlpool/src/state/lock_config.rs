@@ -6,8 +6,8 @@ pub struct LockConfig {
     pub position_owner: Pubkey, // 32
     pub whirlpool: Pubkey,      // 32
     pub locked_timestamp: u64,  // 8
-    pub lock_type: LockTypeLabel, // 1
-                                // 128 RESERVE
+    pub lock_type: LockTypeLabel, /* 1
+                                 * 128 RESERVE */
 }
 
 #[non_exhaustive]
@@ -16,7 +16,9 @@ pub enum LockType {
     Permanent,
 }
 
-// To avoid storing an enum that may be extended in the future to the account, separate the variant label and value. The value is added flatly to the account.
+// To avoid storing an enum that may be extended in the future to the account,
+// separate the variant label and value. The value is added flatly to the
+// account.
 #[non_exhaustive]
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug, PartialEq)]
 pub enum LockTypeLabel {
@@ -87,9 +89,7 @@ mod lock_config_initialize_tests {
 
 #[cfg(test)]
 mod data_layout_tests {
-    use anchor_lang::Discriminator;
-
-    use super::*;
+    use {super::*, anchor_lang::Discriminator};
 
     #[test]
     fn test_lock_config_data_layout() {
@@ -106,18 +106,15 @@ mod data_layout_tests {
         offset += 8;
         lock_config_data[offset..offset + 32].copy_from_slice(&lock_config_position.to_bytes());
         offset += 32;
-        lock_config_data[offset..offset + 32]
-            .copy_from_slice(&lock_config_position_owner.to_bytes());
+        lock_config_data[offset..offset + 32].copy_from_slice(&lock_config_position_owner.to_bytes());
         offset += 32;
         lock_config_data[offset..offset + 32].copy_from_slice(&lock_config_whirlpool.to_bytes());
         offset += 32;
-        lock_config_data[offset..offset + 8]
-            .copy_from_slice(&lock_config_locked_timestamp.to_le_bytes());
+        lock_config_data[offset..offset + 8].copy_from_slice(&lock_config_locked_timestamp.to_le_bytes());
         offset += 8;
         lock_config_data[offset] = lock_config_lock_type as u8;
         offset += 1;
-        lock_config_data[offset..offset + lock_config_reserved.len()]
-            .copy_from_slice(&lock_config_reserved);
+        lock_config_data[offset..offset + lock_config_reserved.len()].copy_from_slice(&lock_config_reserved);
         offset += lock_config_reserved.len();
         assert_eq!(offset, LockConfig::LEN);
 

@@ -1,11 +1,11 @@
-use anchor_lang::prelude::*;
-use anchor_spl::token::TokenAccount;
-
-use crate::errors::ErrorCode;
-use crate::manager::whirlpool_manager::next_whirlpool_reward_infos;
-use crate::math::checked_mul_shift_right;
-use crate::state::Whirlpool;
-use crate::util::to_timestamp_u64;
+use {
+    crate::{
+        errors::ErrorCode, manager::whirlpool_manager::next_whirlpool_reward_infos, math::checked_mul_shift_right,
+        state::Whirlpool, util::to_timestamp_u64,
+    },
+    anchor_lang::prelude::*,
+    anchor_spl::token::TokenAccount,
+};
 
 const DAY_IN_SECONDS: u128 = 60 * 60 * 24;
 
@@ -22,11 +22,7 @@ pub struct SetRewardEmissions<'info> {
     pub reward_vault: Account<'info, TokenAccount>,
 }
 
-pub fn handler(
-    ctx: Context<SetRewardEmissions>,
-    reward_index: u8,
-    emissions_per_second_x64: u128,
-) -> Result<()> {
+pub fn handler(ctx: Context<SetRewardEmissions>, reward_index: u8, emissions_per_second_x64: u128) -> Result<()> {
     let whirlpool = &ctx.accounts.whirlpool;
     let reward_vault = &ctx.accounts.reward_vault;
 

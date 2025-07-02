@@ -1,6 +1,7 @@
-use anchor_lang::prelude::*;
-
-use crate::state::{AdaptiveFeeTier, WhirlpoolsConfig};
+use {
+    crate::state::{AdaptiveFeeTier, WhirlpoolsConfig},
+    anchor_lang::prelude::*,
+};
 
 #[derive(Accounts)]
 pub struct SetPresetAdaptiveFeeConstants<'info> {
@@ -23,15 +24,13 @@ pub fn handler(
     tick_group_size: u16,
     major_swap_threshold_ticks: u16,
 ) -> Result<()> {
-    ctx.accounts
-        .adaptive_fee_tier
-        .update_adaptive_fee_constants(
-            filter_period,
-            decay_period,
-            reduction_factor,
-            adaptive_fee_control_factor,
-            max_volatility_accumulator,
-            tick_group_size,
-            major_swap_threshold_ticks,
-        )
+    ctx.accounts.adaptive_fee_tier.update_adaptive_fee_constants(
+        filter_period,
+        decay_period,
+        reduction_factor,
+        adaptive_fee_control_factor,
+        max_volatility_accumulator,
+        tick_group_size,
+        major_swap_threshold_ticks,
+    )
 }

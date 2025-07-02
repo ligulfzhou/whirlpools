@@ -1,6 +1,7 @@
-use crate::state::WhirlpoolsConfig;
-use crate::{errors::ErrorCode, math::MAX_FEE_RATE};
-use anchor_lang::prelude::*;
+use {
+    crate::{errors::ErrorCode, math::MAX_FEE_RATE, state::WhirlpoolsConfig},
+    anchor_lang::prelude::*,
+};
 
 #[account]
 pub struct FeeTier {
@@ -40,9 +41,7 @@ impl FeeTier {
 
 #[cfg(test)]
 mod data_layout_tests {
-    use anchor_lang::Discriminator;
-
-    use super::*;
+    use {super::*, anchor_lang::Discriminator};
 
     #[test]
     fn test_fee_tier_data_layout() {

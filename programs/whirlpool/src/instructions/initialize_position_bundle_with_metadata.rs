@@ -1,10 +1,15 @@
-use anchor_lang::prelude::*;
-use anchor_spl::associated_token::AssociatedToken;
-use anchor_spl::metadata::Metadata;
-use anchor_spl::token::{self, Mint, Token, TokenAccount};
-
-use crate::constants::nft::whirlpool_nft_update_auth::ID as WPB_NFT_UPDATE_AUTH;
-use crate::{state::*, util::mint_position_bundle_token_with_metadata_and_remove_authority};
+use {
+    crate::{
+        constants::nft::whirlpool_nft_update_auth::ID as WPB_NFT_UPDATE_AUTH, state::*,
+        util::mint_position_bundle_token_with_metadata_and_remove_authority,
+    },
+    anchor_lang::prelude::*,
+    anchor_spl::{
+        associated_token::AssociatedToken,
+        metadata::Metadata,
+        token::{self, Mint, Token, TokenAccount},
+    },
+};
 
 #[derive(Accounts)]
 pub struct InitializePositionBundleWithMetadata<'info> {
@@ -35,7 +40,8 @@ pub struct InitializePositionBundleWithMetadata<'info> {
     )]
     pub position_bundle_token_account: Box<Account<'info, TokenAccount>>,
 
-    /// CHECK: safe, the account that will be the owner of the position bundle can be arbitrary
+    /// CHECK: safe, the account that will be the owner of the position bundle
+    /// can be arbitrary
     pub position_bundle_owner: UncheckedAccount<'info>,
 
     #[account(mut)]

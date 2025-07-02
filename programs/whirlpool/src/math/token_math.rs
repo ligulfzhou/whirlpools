@@ -1,9 +1,9 @@
-use crate::errors::ErrorCode;
-use crate::math::{Q64_MASK, Q64_RESOLUTION};
-
-use super::{
-    div_round_up_if, div_round_up_if_u256, mul_u256, U256Muldiv, MAX_SQRT_PRICE_X64,
-    MIN_SQRT_PRICE_X64,
+use {
+    super::{div_round_up_if, div_round_up_if_u256, mul_u256, U256Muldiv, MAX_SQRT_PRICE_X64, MIN_SQRT_PRICE_X64},
+    crate::{
+        errors::ErrorCode,
+        math::{Q64_MASK, Q64_RESOLUTION},
+    },
 };
 
 // Fee rate is represented as hundredths of a basis point.
@@ -65,9 +65,11 @@ impl AmountDeltaU64 {
 // Δt_a = (1 / sqrt_price_upper - 1 / sqrt_price_lower) * liquidity
 
 // Common denominator to simplify
-// Δt_a = ((sqrt_price_lower - sqrt_price_upper) / (sqrt_price_upper * sqrt_price_lower)) * liquidity
+// Δt_a = ((sqrt_price_lower - sqrt_price_upper) / (sqrt_price_upper *
+// sqrt_price_lower)) * liquidity
 
-// Δt_a = (liquidity * (sqrt_price_lower - sqrt_price_upper)) / (sqrt_price_upper * sqrt_price_lower)
+// Δt_a = (liquidity * (sqrt_price_lower - sqrt_price_upper)) /
+// (sqrt_price_upper * sqrt_price_lower)
 pub fn get_amount_delta_a(
     sqrt_price_0: u128,
     sqrt_price_1: u128,
@@ -161,20 +163,12 @@ pub fn try_get_amount_delta_b(
 
         let should_round = round_up && (p & Q64_MASK > 0);
         if should_round && result == u64::MAX {
-            return Ok(AmountDeltaU64::ExceedsMax(
-                ErrorCode::MultiplicationOverflow,
-            ));
+            return Ok(AmountDeltaU64::ExceedsMax(ErrorCode::MultiplicationOverflow));
         }
 
-        Ok(AmountDeltaU64::Valid(if should_round {
-            result + 1
-        } else {
-            result
-        }))
+        Ok(AmountDeltaU64::Valid(if should_round { result + 1 } else { result }))
     } else {
-        Ok(AmountDeltaU64::ExceedsMax(
-            ErrorCode::MultiplicationShiftRightOverflow,
-        ))
+        Ok(AmountDeltaU64::ExceedsMax(ErrorCode::MultiplicationShiftRightOverflow))
     }
 }
 
@@ -199,7 +193,8 @@ pub fn increasing_price_order(sqrt_price_0: u128, sqrt_price_1: u128) -> (u128, 
 // 1 / sqrt_price_new = (amount / liquidity) + (1 / sqrt_price)
 //
 // Common denominator for right side
-// 1 / sqrt_price_new = (sqrt_price * amount + liquidity) / (sqrt_price * liquidity)
+// 1 / sqrt_price_new = (sqrt_price * amount + liquidity) / (sqrt_price *
+// liquidity)
 //
 // Invert fractions
 // sqrt_price_new = (sqrt_price * liquidity) / (liquidity + amount * sqrt_price)
@@ -252,11 +247,12 @@ pub fn get_next_sqrt_price_from_b_round_down(
     amount_specified_is_input: bool,
 ) -> Result<u128, ErrorCode> {
     // We always want square root price to be rounded down, which means
-    // Case 3. If we are fixing input (adding B), we are increasing price, we want delta to be floor(delta)
-    // sqrt_price + floor(delta) < sqrt_price + delta
+    // Case 3. If we are fixing input (adding B), we are increasing price, we want
+    // delta to be floor(delta) sqrt_price + floor(delta) < sqrt_price + delta
     //
-    // Case 4. If we are fixing output (removing B), we are decreasing price, we want delta to be ceil(delta)
-    // sqrt_price - ceil(delta) < sqrt_price - delta
+    // Case 4. If we are fixing output (removing B), we are decreasing price, we
+    // want delta to be ceil(delta) sqrt_price - ceil(delta) < sqrt_price -
+    // delta
 
     // Q64.0 << 64 => Q64.64
     let amount_x64 = (amount as u128) << Q64_RESOLUTION;
@@ -267,14 +263,10 @@ pub fn get_next_sqrt_price_from_b_round_down(
     // Q64(32).64 +/- Q64.64
     if amount_specified_is_input {
         // We are adding token b to supply, causing price to increase
-        sqrt_price
-            .checked_add(delta)
-            .ok_or(ErrorCode::SqrtPriceOutOfBounds)
+        sqrt_price.checked_add(delta).ok_or(ErrorCode::SqrtPriceOutOfBounds)
     } else {
         // We are removing token b from supply,. causing price to decrease
-        sqrt_price
-            .checked_sub(delta)
-            .ok_or(ErrorCode::SqrtPriceOutOfBounds)
+        sqrt_price.checked_sub(delta).ok_or(ErrorCode::SqrtPriceOutOfBounds)
     }
 }
 
@@ -299,23 +291,22 @@ pub fn get_next_sqrt_price(
         //
         // Case 1. amount_specified_is_input = true, a_to_b = true
         // We are adding token A to the supply, causing price to decrease (Eq 1.)
-        // Since we are fixing input, we can not exceed the amount that is being provided by the user.
-        // Because a higher price is inversely correlated with an increased supply of A,
-        // a higher price means we are adding less A. Thus when performing math, we wish to round the
-        // price up, since that means that we are guaranteed to not exceed the fixed amount of A provided.
+        // Since we are fixing input, we can not exceed the amount that is being
+        // provided by the user. Because a higher price is inversely correlated
+        // with an increased supply of A, a higher price means we are adding
+        // less A. Thus when performing math, we wish to round the
+        // price up, since that means that we are guaranteed to not exceed the fixed
+        // amount of A provided.
         //
         // Case 2. amount_specified_is_input = false, a_to_b = false
         // We are removing token A from the supply, causing price to increase (Eq 1.)
-        // Since we are fixing output, we want to guarantee that the user is provided at least _amount_ of A
-        // Because a higher price is correlated with a decreased supply of A,
-        // a higher price means we are removing more A to give to the user. Thus when performing math, we wish
-        // to round the price up, since that means we guarantee that user receives at least _amount_ of A
-        get_next_sqrt_price_from_a_round_up(
-            sqrt_price,
-            liquidity,
-            amount,
-            amount_specified_is_input,
-        )
+        // Since we are fixing output, we want to guarantee that the user is provided at
+        // least _amount_ of A Because a higher price is correlated with a
+        // decreased supply of A, a higher price means we are removing more A to
+        // give to the user. Thus when performing math, we wish to round the
+        // price up, since that means we guarantee that user receives at least _amount_
+        // of A
+        get_next_sqrt_price_from_a_round_up(sqrt_price, liquidity, amount, amount_specified_is_input)
     } else {
         // We are fixing B
         // Case 3. amount_specified_is_input = true, a_to_b = false
@@ -330,31 +321,32 @@ pub fn get_next_sqrt_price(
         //
         // Case 3. amount_specified_is_input = true, a_to_b = false
         // We are adding token B to the supply, causing price to increase (Eq 1.)
-        // Since we are fixing input, we can not exceed the amount that is being provided by the user.
-        // Because a lower price is inversely correlated with an increased supply of B,
-        // a lower price means that we are adding less B. Thus when performing math, we wish to round the
-        // price down, since that means that we are guaranteed to not exceed the fixed amount of B provided.
+        // Since we are fixing input, we can not exceed the amount that is being
+        // provided by the user. Because a lower price is inversely correlated
+        // with an increased supply of B, a lower price means that we are adding
+        // less B. Thus when performing math, we wish to round the price down,
+        // since that means that we are guaranteed to not exceed the fixed amount of B
+        // provided.
         //
         // Case 4. amount_specified_is_input = false, a_to_b = true
         // We are removing token B from the supply, causing price to decrease (Eq 1.)
-        // Since we are fixing output, we want to guarantee that the user is provided at least _amount_ of B
-        // Because a lower price is correlated with a decreased supply of B,
-        // a lower price means we are removing more B to give to the user. Thus when performing math, we
-        // wish to round the price down, since that means we guarantee that the user receives at least _amount_ of B
-        get_next_sqrt_price_from_b_round_down(
-            sqrt_price,
-            liquidity,
-            amount,
-            amount_specified_is_input,
-        )
+        // Since we are fixing output, we want to guarantee that the user is provided at
+        // least _amount_ of B Because a lower price is correlated with a
+        // decreased supply of B, a lower price means we are removing more B to
+        // give to the user. Thus when performing math, we wish to round the
+        // price down, since that means we guarantee that the user receives at least
+        // _amount_ of B
+        get_next_sqrt_price_from_b_round_down(sqrt_price, liquidity, amount, amount_specified_is_input)
     }
 }
 
 #[cfg(test)]
 mod fuzz_tests {
-    use super::*;
-    use crate::math::{bit_math::*, tick_math::*, U256};
-    use proptest::prelude::*;
+    use {
+        super::*,
+        crate::math::{bit_math::*, tick_math::*, U256},
+        proptest::prelude::*,
+    };
 
     // Cases where the math overflows or errors
     //
@@ -365,7 +357,8 @@ mod fuzz_tests {
     //      DivideByZero: (liquidity / liquidity - amount * sqrt_price)
     //           liquidity <= sqrt_price * amount, divide by zero error
     //      TokenMax/MinExceed
-    //           (sqrt_price * liquidity) / (liquidity + amount * sqrt_price) > 2^32 - 1
+    //           (sqrt_price * liquidity) / (liquidity + amount * sqrt_price) > 2^32
+    // - 1
     //
     // get_next_sqrt_price_from_b_round_down
     //      SqrtPriceOutOfBounds
@@ -546,9 +539,9 @@ mod fuzz_tests {
 
 #[cfg(test)]
 mod test_get_amount_delta {
-    // Δt_a = ((liquidity * (sqrt_price_lower - sqrt_price_upper)) / sqrt_price_upper) / sqrt_price_lower
-    use super::get_amount_delta_a;
-    use super::get_amount_delta_b;
+    // Δt_a = ((liquidity * (sqrt_price_lower - sqrt_price_upper)) /
+    // sqrt_price_upper) / sqrt_price_lower
+    use super::{get_amount_delta_a, get_amount_delta_b};
 
     #[test]
     fn test_get_amount_delta_ok() {

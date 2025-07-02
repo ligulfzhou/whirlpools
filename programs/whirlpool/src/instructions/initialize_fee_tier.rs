@@ -1,5 +1,4 @@
-use crate::state::*;
-use anchor_lang::prelude::*;
+use {crate::state::*, anchor_lang::prelude::*};
 
 #[derive(Accounts)]
 #[instruction(tick_spacing: u16)]
@@ -23,11 +22,7 @@ pub struct InitializeFeeTier<'info> {
     pub system_program: Program<'info, System>,
 }
 
-pub fn handler(
-    ctx: Context<InitializeFeeTier>,
-    tick_spacing: u16,
-    default_fee_rate: u16,
-) -> Result<()> {
+pub fn handler(ctx: Context<InitializeFeeTier>, tick_spacing: u16, default_fee_rate: u16) -> Result<()> {
     ctx.accounts
         .fee_tier
         .initialize(&ctx.accounts.config, tick_spacing, default_fee_rate)

@@ -1,6 +1,8 @@
-use crate::{state::*, util::transfer_from_vault_to_owner};
-use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Token, TokenAccount};
+use {
+    crate::{state::*, util::transfer_from_vault_to_owner},
+    anchor_lang::prelude::*,
+    anchor_spl::token::{self, Token, TokenAccount},
+};
 
 #[derive(Accounts)]
 pub struct CollectProtocolFees<'info> {

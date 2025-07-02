@@ -1,20 +1,25 @@
-use crate::errors::ErrorCode;
-use crate::state::{TokenBadge, Whirlpool};
-use anchor_lang::prelude::*;
-use anchor_spl::token_2022::spl_token_2022::extension::transfer_fee::{
-    TransferFee, MAX_FEE_BASIS_POINTS,
+use {
+    crate::{
+        errors::ErrorCode,
+        state::{TokenBadge, Whirlpool},
+    },
+    anchor_lang::prelude::*,
+    anchor_spl::{
+        memo::{self, BuildMemo, Memo},
+        token::Token,
+        token_2022::spl_token_2022::{
+            self,
+            extension::{
+                self,
+                transfer_fee::{TransferFee, MAX_FEE_BASIS_POINTS},
+                StateWithExtensions,
+            },
+        },
+        token_interface::{spl_token_2022::extension::BaseStateWithExtensions, Mint, TokenAccount, TokenInterface},
+    },
+    num_enum::{IntoPrimitive, TryFromPrimitive},
+    spl_transfer_hook_interface,
 };
-use anchor_spl::token_interface::spl_token_2022::extension::BaseStateWithExtensions;
-
-use anchor_spl::memo::{self, BuildMemo, Memo};
-use anchor_spl::token::Token;
-use anchor_spl::token_2022::spl_token_2022::{
-    self,
-    extension::{self, StateWithExtensions},
-};
-use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
-use num_enum::{IntoPrimitive, TryFromPrimitive};
-use spl_transfer_hook_interface;
 
 #[allow(clippy::too_many_arguments)]
 pub fn transfer_from_owner_to_vault_v2<'info>(
@@ -30,7 +35,8 @@ pub fn transfer_from_owner_to_vault_v2<'info>(
     // TransferFee extension
     if let Some(epoch_transfer_fee) = get_epoch_transfer_fee(token_mint)? {
         // log applied transfer fee
-        // - Not must, but important for ease of investigation and replay when problems occur
+        // - Not must, but important for ease of investigation and replay when problems
+        //   occur
         // - Use Memo because logs risk being truncated
         let transfer_fee_memo = format!(
             "TFe: {}, {}",
@@ -44,7 +50,8 @@ pub fn transfer_from_owner_to_vault_v2<'info>(
     }
 
     // MemoTransfer extension
-    // The vault doesn't have MemoTransfer extension, so we don't need to use memo_program here
+    // The vault doesn't have MemoTransfer extension, so we don't need to use
+    // memo_program here
 
     let mut instruction = spl_token_2022::instruction::transfer_checked(
         token_program.key,
@@ -73,18 +80,18 @@ pub fn transfer_from_owner_to_vault_v2<'info>(
             return Err(ErrorCode::NoExtraAccountsForTransferHook.into());
         }
 
-        spl_transfer_hook_interface::onchain::add_extra_accounts_for_execute_cpi(
-            &mut instruction,
-            &mut account_infos,
-            &hook_program_id,
-            // owner to vault
-            token_owner_account.to_account_info(), // from (owner account)
-            token_mint.to_account_info(),          // mint
-            token_vault.to_account_info(),         // to (vault account)
-            authority.to_account_info(),           // authority (owner)
-            amount,
-            transfer_hook_accounts.as_ref().unwrap(),
-        )?;
+        // spl_transfer_hook_interface::onchain::add_extra_accounts_for_execute_cpi(
+        //     &mut instruction,
+        //     &mut account_infos,
+        //     &hook_program_id,
+        //     // owner to vault
+        //     token_owner_account.to_account_info(), // from (owner account)
+        //     token_mint.to_account_info(),          // mint
+        //     token_vault.to_account_info(),         // to (vault account)
+        //     authority.to_account_info(),           // authority (owner)
+        //     amount,
+        //     transfer_hook_accounts.as_ref().unwrap(),
+        // )?;
     }
 
     solana_program::program::invoke_signed(&instruction, &account_infos, &[])?;
@@ -107,7 +114,8 @@ pub fn transfer_from_vault_to_owner_v2<'info>(
     // TransferFee extension
     if let Some(epoch_transfer_fee) = get_epoch_transfer_fee(token_mint)? {
         // log applied transfer fee
-        // - Not must, but important for ease of investigation and replay when problems occur
+        // - Not must, but important for ease of investigation and replay when problems
+        //   occur
         // - Use Memo because logs risk being truncated
         let transfer_fee_memo = format!(
             "TFe: {}, {}",
@@ -122,10 +130,7 @@ pub fn transfer_from_vault_to_owner_v2<'info>(
 
     // MemoTransfer extension
     if is_transfer_memo_required(token_owner_account)? {
-        memo::build_memo(
-            CpiContext::new(memo_program.to_account_info(), BuildMemo {}),
-            memo,
-        )?;
+        memo::build_memo(CpiContext::new(memo_program.to_account_info(), BuildMemo {}), memo)?;
     }
 
     let mut instruction = spl_token_2022::instruction::transfer_checked(
@@ -155,18 +160,18 @@ pub fn transfer_from_vault_to_owner_v2<'info>(
             return Err(ErrorCode::NoExtraAccountsForTransferHook.into());
         }
 
-        spl_transfer_hook_interface::onchain::add_extra_accounts_for_execute_cpi(
-            &mut instruction,
-            &mut account_infos,
-            &hook_program_id,
-            // vault to owner
-            token_vault.to_account_info(), // from (vault account)
-            token_mint.to_account_info(),  // mint
-            token_owner_account.to_account_info(), // to (owner account)
-            whirlpool.to_account_info(),   // authority (pool)
-            amount,
-            transfer_hook_accounts.as_ref().unwrap(),
-        )?;
+        // spl_transfer_hook_interface::onchain::add_extra_accounts_for_execute_cpi(
+        //     &mut instruction,
+        //     &mut account_infos,
+        //     &hook_program_id,
+        //     // vault to owner
+        //     token_vault.to_account_info(), // from (vault account)
+        //     token_mint.to_account_info(),  // mint
+        //     token_owner_account.to_account_info(), // to (owner account)
+        //     whirlpool.to_account_info(),   // authority (pool)
+        //     amount,
+        //     transfer_hook_accounts.as_ref().unwrap(),
+        // )?;
     }
 
     solana_program::program::invoke_signed(&instruction, &account_infos, &[&whirlpool.seeds()])?;
@@ -181,11 +186,8 @@ fn get_transfer_hook_program_id(token_mint: &InterfaceAccount<'_, Mint>) -> Resu
     }
 
     let token_mint_data = token_mint_info.try_borrow_data()?;
-    let token_mint_unpacked =
-        StateWithExtensions::<spl_token_2022::state::Mint>::unpack(&token_mint_data)?;
-    Ok(extension::transfer_hook::get_program_id(
-        &token_mint_unpacked,
-    ))
+    let token_mint_unpacked = StateWithExtensions::<spl_token_2022::state::Mint>::unpack(&token_mint_data)?;
+    Ok(extension::transfer_hook::get_program_id(&token_mint_unpacked))
 }
 
 fn is_transfer_memo_required(token_account: &InterfaceAccount<'_, TokenAccount>) -> Result<bool> {
@@ -195,10 +197,8 @@ fn is_transfer_memo_required(token_account: &InterfaceAccount<'_, TokenAccount>)
     }
 
     let token_account_data = token_account_info.try_borrow_data()?;
-    let token_account_unpacked =
-        StateWithExtensions::<spl_token_2022::state::Account>::unpack(&token_account_data)?;
-    let extension =
-        token_account_unpacked.get_extension::<extension::memo_transfer::MemoTransfer>();
+    let token_account_unpacked = StateWithExtensions::<spl_token_2022::state::Account>::unpack(&token_account_data)?;
+    let extension = token_account_unpacked.get_extension::<extension::memo_transfer::MemoTransfer>();
 
     if let Ok(memo_transfer) = extension {
         Ok(memo_transfer.require_incoming_transfer_memos.into())
@@ -213,7 +213,8 @@ pub fn is_supported_token_mint(
 ) -> Result<bool> {
     let token_mint_info = token_mint.to_account_info();
 
-    // if mint is owned by Token Program, it is supported (compatible to initialize_pool / initialize_reward)
+    // if mint is owned by Token Program, it is supported (compatible to
+    // initialize_pool / initialize_reward)
     if *token_mint_info.owner == Token::id() {
         return Ok(true);
     }
@@ -231,8 +232,7 @@ pub fn is_supported_token_mint(
     }
 
     let token_mint_data = token_mint_info.try_borrow_data()?;
-    let token_mint_unpacked =
-        StateWithExtensions::<spl_token_2022::state::Mint>::unpack(&token_mint_data)?;
+    let token_mint_unpacked = StateWithExtensions::<spl_token_2022::state::Mint>::unpack(&token_mint_data)?;
 
     let tlv_data = token_mint_unpacked.get_tlv_data();
     let extensions = get_token_extension_types(tlv_data)?;
@@ -248,16 +248,20 @@ pub fn is_supported_token_mint(
             TokenExtensionType::ConfidentialTransferMint => {
                 // Supported, but non-confidential transfer only
                 //
-                // WhirlpoolProgram invokes TransferChecked instruction and it supports non-confidential transfer only.
+                // WhirlpoolProgram invokes TransferChecked instruction and it
+                // supports non-confidential transfer only.
                 //
-                // Because the vault accounts are not configured to support confidential transfer,
-                // it is impossible to send tokens directly to the vault accounts confidentially.
-                // Note: Only the owner (Whirlpool account) can call ConfidentialTransferInstruction::ConfigureAccount.
+                // Because the vault accounts are not configured to support
+                // confidential transfer, it is impossible to
+                // send tokens directly to the vault accounts confidentially.
+                // Note: Only the owner (Whirlpool account) can call
+                // ConfidentialTransferInstruction::ConfigureAccount.
             }
             TokenExtensionType::ConfidentialTransferFeeConfig => {
                 // Supported, but non-confidential transfer only
-                // When both TransferFeeConfig and ConfidentialTransferMint are initialized,
-                // ConfidentialTransferFeeConfig is also initialized to store encrypted transfer fee amount.
+                // When both TransferFeeConfig and ConfidentialTransferMint are
+                // initialized, ConfidentialTransferFeeConfig is
+                // also initialized to store encrypted transfer fee amount.
             }
             // supported if token badge is initialized
             TokenExtensionType::PermanentDelegate => {
@@ -310,8 +314,7 @@ pub fn is_token_badge_initialized(
 
     let token_badge = TokenBadge::try_deserialize(&mut token_badge.data.borrow().as_ref())?;
 
-    Ok(token_badge.whirlpools_config == whirlpools_config_key
-        && token_badge.token_mint == token_mint_key)
+    Ok(token_badge.whirlpools_config == whirlpools_config_key && token_badge.token_mint == token_mint_key)
 }
 
 pub fn verify_supported_token_mint(
@@ -319,8 +322,7 @@ pub fn verify_supported_token_mint(
     whirlpools_config_key: Pubkey,
     token_badge: &UncheckedAccount<'_>,
 ) -> Result<()> {
-    let token_badge_initialized =
-        is_token_badge_initialized(whirlpools_config_key, token_mint.key(), token_badge)?;
+    let token_badge_initialized = is_token_badge_initialized(whirlpools_config_key, token_mint.key(), token_badge)?;
 
     if !is_supported_token_mint(token_mint, token_badge_initialized)? {
         return Err(ErrorCode::UnsupportedTokenMint.into());
@@ -346,12 +348,8 @@ pub fn calculate_transfer_fee_excluded_amount(
     transfer_fee_included_amount: u64,
 ) -> Result<TransferFeeExcludedAmount> {
     if let Some(epoch_transfer_fee) = get_epoch_transfer_fee(token_mint)? {
-        let transfer_fee = epoch_transfer_fee
-            .calculate_fee(transfer_fee_included_amount)
-            .unwrap();
-        let transfer_fee_excluded_amount = transfer_fee_included_amount
-            .checked_sub(transfer_fee)
-            .unwrap();
+        let transfer_fee = epoch_transfer_fee.calculate_fee(transfer_fee_included_amount).unwrap();
+        let transfer_fee_excluded_amount = transfer_fee_included_amount.checked_sub(transfer_fee).unwrap();
         return Ok(TransferFeeExcludedAmount {
             amount: transfer_fee_excluded_amount,
             transfer_fee,
@@ -378,28 +376,26 @@ pub fn calculate_transfer_fee_included_amount(
     // now transfer_fee_excluded_amount > 0
 
     if let Some(epoch_transfer_fee) = get_epoch_transfer_fee(token_mint)? {
-        let transfer_fee: u64 =
-            if u16::from(epoch_transfer_fee.transfer_fee_basis_points) == MAX_FEE_BASIS_POINTS {
-                // edge-case: if transfer fee rate is 100%, current SPL implementation returns 0 as inverse fee.
-                // https://github.com/solana-labs/solana-program-library/blob/fe1ac9a2c4e5d85962b78c3fc6aaf028461e9026/token/program-2022/src/extension/transfer_fee/mod.rs#L95
+        let transfer_fee: u64 = if u16::from(epoch_transfer_fee.transfer_fee_basis_points) == MAX_FEE_BASIS_POINTS {
+            // edge-case: if transfer fee rate is 100%, current SPL implementation returns 0
+            // as inverse fee. https://github.com/solana-labs/solana-program-library/blob/fe1ac9a2c4e5d85962b78c3fc6aaf028461e9026/token/program-2022/src/extension/transfer_fee/mod.rs#L95
 
-                // But even if transfer fee is 100%, we can use maximum_fee as transfer fee.
-                // if transfer_fee_excluded_amount + maximum_fee > u64 max, the following checked_add should fail.
-                u64::from(epoch_transfer_fee.maximum_fee)
-            } else {
-                epoch_transfer_fee
-                    .calculate_inverse_fee(transfer_fee_excluded_amount)
-                    .ok_or(ErrorCode::TransferFeeCalculationError)?
-            };
+            // But even if transfer fee is 100%, we can use maximum_fee as transfer fee.
+            // if transfer_fee_excluded_amount + maximum_fee > u64 max, the following
+            // checked_add should fail.
+            u64::from(epoch_transfer_fee.maximum_fee)
+        } else {
+            epoch_transfer_fee
+                .calculate_inverse_fee(transfer_fee_excluded_amount)
+                .ok_or(ErrorCode::TransferFeeCalculationError)?
+        };
 
         let transfer_fee_included_amount = transfer_fee_excluded_amount
             .checked_add(transfer_fee)
             .ok_or(ErrorCode::TransferFeeCalculationError)?;
 
         // verify transfer fee calculation for safety
-        let transfer_fee_verification = epoch_transfer_fee
-            .calculate_fee(transfer_fee_included_amount)
-            .unwrap();
+        let transfer_fee_verification = epoch_transfer_fee.calculate_fee(transfer_fee_included_amount).unwrap();
         if transfer_fee != transfer_fee_verification {
             // We believe this should never happen
             return Err(ErrorCode::TransferFeeCalculationError.into());
@@ -417,20 +413,15 @@ pub fn calculate_transfer_fee_included_amount(
     })
 }
 
-pub fn get_epoch_transfer_fee(
-    token_mint: &InterfaceAccount<'_, Mint>,
-) -> Result<Option<TransferFee>> {
+pub fn get_epoch_transfer_fee(token_mint: &InterfaceAccount<'_, Mint>) -> Result<Option<TransferFee>> {
     let token_mint_info = token_mint.to_account_info();
     if *token_mint_info.owner == Token::id() {
         return Ok(None);
     }
 
     let token_mint_data = token_mint_info.try_borrow_data()?;
-    let token_mint_unpacked =
-        StateWithExtensions::<spl_token_2022::state::Mint>::unpack(&token_mint_data)?;
-    if let Ok(transfer_fee_config) =
-        token_mint_unpacked.get_extension::<extension::transfer_fee::TransferFeeConfig>()
-    {
+    let token_mint_unpacked = StateWithExtensions::<spl_token_2022::state::Mint>::unpack(&token_mint_data)?;
+    if let Ok(transfer_fee_config) = token_mint_unpacked.get_extension::<extension::transfer_fee::TransferFeeConfig>() {
         let epoch = Clock::get()?.epoch;
         return Ok(Some(*transfer_fee_config.get_epoch_fee(epoch)));
     }
@@ -440,7 +431,8 @@ pub fn get_epoch_transfer_fee(
 
 // clone from spl-token-2022 (v9.0.0)
 // https://github.com/solana-program/token-2022/blob/1c1a20cfa930058a853e15821112571b383c3e70/program/src/extension/mod.rs#L1059
-// We still use Anchor 0.29.0 and old spl-token-2022 which doesn't support newer extensions.
+// We still use Anchor 0.29.0 and old spl-token-2022 which doesn't support newer
+// extensions.
 #[repr(u16)]
 #[derive(Clone, Copy, Debug, PartialEq, TryFromPrimitive, IntoPrimitive)]
 enum TokenExtensionType {
@@ -516,9 +508,7 @@ fn read_u16_le_from_slice(slice: &[u8]) -> Result<u16> {
         return Err(ProgramError::InvalidAccountData.into());
     }
     Ok(u16::from_le_bytes(
-        slice[0..2]
-            .try_into()
-            .map_err(|_| ProgramError::InvalidAccountData)?,
+        slice[0..2].try_into().map_err(|_| ProgramError::InvalidAccountData)?,
     ))
 }
 
@@ -542,10 +532,9 @@ fn get_token_extension_types(tlv_data: &[u8]) -> Result<Vec<TokenExtensionType>>
             return Ok(extension_types);
         }
 
-        let extension_type_num =
-            read_u16_le_from_slice(&tlv_data[tlv_type_start..tlv_length_start])?;
-        let extension_type = TokenExtensionType::try_from(extension_type_num)
-            .map_err(|_| ProgramError::InvalidAccountData)?;
+        let extension_type_num = read_u16_le_from_slice(&tlv_data[tlv_type_start..tlv_length_start])?;
+        let extension_type =
+            TokenExtensionType::try_from(extension_type_num).map_err(|_| ProgramError::InvalidAccountData)?;
 
         if extension_type == TokenExtensionType::Uninitialized {
             return Ok(extension_types);
@@ -572,8 +561,7 @@ fn get_token_extension_types(tlv_data: &[u8]) -> Result<Vec<TokenExtensionType>>
 // special thanks for OtterSec
 #[cfg(test)]
 mod fuzz_tests {
-    use super::*;
-    use proptest::prelude::*;
+    use {super::*, proptest::prelude::*};
 
     struct SyscallStubs {}
     impl solana_program::program_stubs::SyscallStubs for SyscallStubs {
@@ -811,9 +799,7 @@ mod get_token_extension_types_test {
         // TransferFeeConfig
         add_tlv_data(&mut data, TokenExtensionType::TransferFeeConfig, 108);
         // Broken length (not enough bytes for length)
-        data.extend_from_slice(
-            &u16::from(TokenExtensionType::ConfidentialTransferMint).to_le_bytes(),
-        );
+        data.extend_from_slice(&u16::from(TokenExtensionType::ConfidentialTransferMint).to_le_bytes());
         data.extend_from_slice(&[0xFF]); // only 1 byte
 
         let result = get_token_extension_types(&data);

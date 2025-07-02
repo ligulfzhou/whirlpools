@@ -1,6 +1,7 @@
-use anchor_lang::prelude::*;
-
-use crate::state::{AdaptiveFeeTier, Whirlpool};
+use {
+    crate::state::{AdaptiveFeeTier, Whirlpool},
+    anchor_lang::prelude::*,
+};
 
 #[derive(Accounts)]
 pub struct SetFeeRateByDelegatedFeeAuthority<'info> {

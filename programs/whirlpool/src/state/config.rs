@@ -1,6 +1,7 @@
-use anchor_lang::prelude::*;
-
-use crate::{errors::ErrorCode, math::MAX_PROTOCOL_FEE_RATE};
+use {
+    crate::{errors::ErrorCode, math::MAX_PROTOCOL_FEE_RATE},
+    anchor_lang::prelude::*,
+};
 
 #[account]
 pub struct WhirlpoolsConfig {
@@ -18,10 +19,7 @@ impl WhirlpoolsConfig {
         self.fee_authority = fee_authority;
     }
 
-    pub fn update_collect_protocol_fees_authority(
-        &mut self,
-        collect_protocol_fees_authority: Pubkey,
-    ) {
+    pub fn update_collect_protocol_fees_authority(&mut self, collect_protocol_fees_authority: Pubkey) {
         self.collect_protocol_fees_authority = collect_protocol_fees_authority;
     }
 
@@ -40,17 +38,11 @@ impl WhirlpoolsConfig {
         Ok(())
     }
 
-    pub fn update_reward_emissions_super_authority(
-        &mut self,
-        reward_emissions_super_authority: Pubkey,
-    ) {
+    pub fn update_reward_emissions_super_authority(&mut self, reward_emissions_super_authority: Pubkey) {
         self.reward_emissions_super_authority = reward_emissions_super_authority;
     }
 
-    pub fn update_default_protocol_fee_rate(
-        &mut self,
-        default_protocol_fee_rate: u16,
-    ) -> Result<()> {
+    pub fn update_default_protocol_fee_rate(&mut self, default_protocol_fee_rate: u16) -> Result<()> {
         if default_protocol_fee_rate > MAX_PROTOCOL_FEE_RATE {
             return Err(ErrorCode::ProtocolFeeRateMaxExceeded.into());
         }
@@ -62,9 +54,7 @@ impl WhirlpoolsConfig {
 
 #[cfg(test)]
 mod data_layout_tests {
-    use anchor_lang::Discriminator;
-
-    use super::*;
+    use {super::*, anchor_lang::Discriminator};
 
     #[test]
     fn test_whirlpools_config_data_layout() {
@@ -80,14 +70,11 @@ mod data_layout_tests {
         offset += 8;
         config_data[offset..offset + 32].copy_from_slice(&config_fee_authority.to_bytes());
         offset += 32;
-        config_data[offset..offset + 32]
-            .copy_from_slice(&config_collect_protocol_fees_authority.to_bytes());
+        config_data[offset..offset + 32].copy_from_slice(&config_collect_protocol_fees_authority.to_bytes());
         offset += 32;
-        config_data[offset..offset + 32]
-            .copy_from_slice(&config_reward_emissions_super_authority.to_bytes());
+        config_data[offset..offset + 32].copy_from_slice(&config_reward_emissions_super_authority.to_bytes());
         offset += 32;
-        config_data[offset..offset + 2]
-            .copy_from_slice(&config_default_protocol_fee_rate.to_le_bytes());
+        config_data[offset..offset + 2].copy_from_slice(&config_default_protocol_fee_rate.to_le_bytes());
         offset += 2;
         config_data[offset..offset + config_reserved.len()].copy_from_slice(&config_reserved);
         offset += config_reserved.len();
@@ -105,10 +92,7 @@ mod data_layout_tests {
             config_reward_emissions_super_authority,
             deserialized.reward_emissions_super_authority
         );
-        assert_eq!(
-            config_default_protocol_fee_rate,
-            deserialized.default_protocol_fee_rate
-        );
+        assert_eq!(config_default_protocol_fee_rate, deserialized.default_protocol_fee_rate);
 
         // serialize
         let mut serialized = Vec::new();

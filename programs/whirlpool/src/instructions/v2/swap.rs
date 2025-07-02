@@ -1,20 +1,20 @@
-use anchor_lang::prelude::*;
-use anchor_spl::memo::Memo;
-use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
-
-use crate::util::{
-    calculate_transfer_fee_excluded_amount, calculate_transfer_fee_included_amount,
-    parse_remaining_accounts, AccountsType, RemainingAccountsInfo,
-};
-use crate::{
-    constants::transfer_memo,
-    errors::ErrorCode,
-    events::*,
-    manager::swap_manager::*,
-    state::*,
-    util::{
-        to_timestamp_u64, v2::update_and_swap_whirlpool_v2, SparseSwapTickSequenceBuilder,
-        SwapTickSequence,
+use {
+    crate::{
+        constants::transfer_memo,
+        errors::ErrorCode,
+        events::*,
+        manager::swap_manager::*,
+        state::*,
+        util::{
+            calculate_transfer_fee_excluded_amount, calculate_transfer_fee_included_amount, parse_remaining_accounts,
+            to_timestamp_u64, v2::update_and_swap_whirlpool_v2, AccountsType, RemainingAccountsInfo,
+            SparseSwapTickSequenceBuilder, SwapTickSequence,
+        },
+    },
+    anchor_lang::prelude::*,
+    anchor_spl::{
+        memo::Memo,
+        token_interface::{Mint, TokenAccount, TokenInterface},
     },
 };
 
@@ -60,7 +60,8 @@ pub struct SwapV2<'info> {
     pub tick_array_2: UncheckedAccount<'info>,
 
     #[account(mut, seeds = [b"oracle", whirlpool.key().as_ref()], bump)]
-    /// CHECK: Oracle is currently unused and will be enabled on subsequent updates
+    /// CHECK: Oracle is currently unused and will be enabled on subsequent
+    /// updates
     pub oracle: UncheckedAccount<'info>,
     // remaining accounts
     // - accounts for transfer hook program of token_mint_a
@@ -126,17 +127,9 @@ pub fn handler<'info>(
 
     if amount_specified_is_input {
         let transfer_fee_excluded_output_amount = if a_to_b {
-            calculate_transfer_fee_excluded_amount(
-                &ctx.accounts.token_mint_b,
-                swap_update.amount_b,
-            )?
-            .amount
+            calculate_transfer_fee_excluded_amount(&ctx.accounts.token_mint_b, swap_update.amount_b)?.amount
         } else {
-            calculate_transfer_fee_excluded_amount(
-                &ctx.accounts.token_mint_a,
-                swap_update.amount_a,
-            )?
-            .amount
+            calculate_transfer_fee_excluded_amount(&ctx.accounts.token_mint_a, swap_update.amount_a)?.amount
         };
         if transfer_fee_excluded_output_amount < other_amount_threshold {
             return Err(ErrorCode::AmountOutBelowMinimum.into());
@@ -165,10 +158,8 @@ pub fn handler<'info>(
     } else {
         (&ctx.accounts.token_mint_b, &ctx.accounts.token_mint_a)
     };
-    let input_transfer_fee =
-        calculate_transfer_fee_excluded_amount(token_mint_input, input_amount)?.transfer_fee;
-    let output_transfer_fee =
-        calculate_transfer_fee_excluded_amount(token_mint_output, output_amount)?.transfer_fee;
+    let input_transfer_fee = calculate_transfer_fee_excluded_amount(token_mint_input, input_amount)?.transfer_fee;
+    let output_transfer_fee = calculate_transfer_fee_excluded_amount(token_mint_output, output_amount)?.transfer_fee;
     let (lp_fee, protocol_fee) = (swap_update.lp_fee, swap_update.next_protocol_fee);
 
     update_and_swap_whirlpool_v2(
@@ -230,8 +221,7 @@ pub fn swap_with_transfer_fee_extension<'info>(
     if amount_specified_is_input {
         let transfer_fee_included_input = amount;
         let transfer_fee_excluded_input =
-            calculate_transfer_fee_excluded_amount(input_token_mint, transfer_fee_included_input)?
-                .amount;
+            calculate_transfer_fee_excluded_amount(input_token_mint, transfer_fee_included_input)?.amount;
 
         let swap_update = swap(
             whirlpool,
@@ -255,22 +245,15 @@ pub fn swap_with_transfer_fee_extension<'info>(
         let adjusted_transfer_fee_included_input = if fullfilled {
             transfer_fee_included_input
         } else {
-            calculate_transfer_fee_included_amount(input_token_mint, swap_update_amount_input)?
-                .amount
+            calculate_transfer_fee_included_amount(input_token_mint, swap_update_amount_input)?.amount
         };
 
         let transfer_fee_included_output = swap_update_amount_output;
 
         let (amount_a, amount_b) = if a_to_b {
-            (
-                adjusted_transfer_fee_included_input,
-                transfer_fee_included_output,
-            )
+            (adjusted_transfer_fee_included_input, transfer_fee_included_output)
         } else {
-            (
-                transfer_fee_included_output,
-                adjusted_transfer_fee_included_input,
-            )
+            (transfer_fee_included_output, adjusted_transfer_fee_included_input)
         };
         return Ok(Box::new(PostSwapUpdate {
             amount_a, // updated (transfer fee included)
@@ -289,8 +272,7 @@ pub fn swap_with_transfer_fee_extension<'info>(
     // ExactOut
     let transfer_fee_excluded_output = amount;
     let transfer_fee_included_output =
-        calculate_transfer_fee_included_amount(output_token_mint, transfer_fee_excluded_output)?
-            .amount;
+        calculate_transfer_fee_included_amount(output_token_mint, transfer_fee_excluded_output)?.amount;
 
     let swap_update = swap(
         whirlpool,
@@ -315,15 +297,9 @@ pub fn swap_with_transfer_fee_extension<'info>(
     let adjusted_transfer_fee_included_output = swap_update_amount_output;
 
     let (amount_a, amount_b) = if a_to_b {
-        (
-            transfer_fee_included_input,
-            adjusted_transfer_fee_included_output,
-        )
+        (transfer_fee_included_input, adjusted_transfer_fee_included_output)
     } else {
-        (
-            adjusted_transfer_fee_included_output,
-            transfer_fee_included_input,
-        )
+        (adjusted_transfer_fee_included_output, transfer_fee_included_input)
     };
     Ok(Box::new(PostSwapUpdate {
         amount_a, // updated (transfer fee included)

@@ -1,20 +1,23 @@
-use anchor_lang::prelude::*;
-use anchor_spl::memo::Memo;
-use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
-
-use crate::errors::ErrorCode;
-use crate::events::*;
-use crate::manager::liquidity_manager::{
-    calculate_liquidity_token_deltas, calculate_modify_liquidity, sync_modify_liquidity_values,
-};
-use crate::math::convert_to_liquidity_delta;
-use crate::state::*;
-use crate::util::{
-    calculate_transfer_fee_included_amount, parse_remaining_accounts, AccountsType,
-    RemainingAccountsInfo,
-};
-use crate::util::{
-    to_timestamp_u64, v2::transfer_from_owner_to_vault_v2, verify_position_authority_interface,
+use {
+    crate::{
+        errors::ErrorCode,
+        events::*,
+        manager::liquidity_manager::{
+            calculate_liquidity_token_deltas, calculate_modify_liquidity, sync_modify_liquidity_values,
+        },
+        math::convert_to_liquidity_delta,
+        state::*,
+        util::{
+            calculate_transfer_fee_included_amount, parse_remaining_accounts, to_timestamp_u64,
+            v2::transfer_from_owner_to_vault_v2, verify_position_authority_interface, AccountsType,
+            RemainingAccountsInfo,
+        },
+    },
+    anchor_lang::prelude::*,
+    anchor_spl::{
+        memo::Memo,
+        token_interface::{Mint, TokenAccount, TokenInterface},
+    },
 };
 
 #[derive(Accounts)]
@@ -70,10 +73,7 @@ pub fn handler<'info>(
     token_max_b: u64,
     remaining_accounts_info: Option<RemainingAccountsInfo>,
 ) -> Result<()> {
-    verify_position_authority_interface(
-        &ctx.accounts.position_token_account,
-        &ctx.accounts.position_authority,
-    )?;
+    verify_position_authority_interface(&ctx.accounts.position_token_account, &ctx.accounts.position_authority)?;
 
     let clock = Clock::get()?;
 
@@ -116,12 +116,11 @@ pub fn handler<'info>(
         liquidity_delta,
     )?;
 
-    let transfer_fee_included_delta_a =
-        calculate_transfer_fee_included_amount(&ctx.accounts.token_mint_a, delta_a)?;
-    let transfer_fee_included_delta_b =
-        calculate_transfer_fee_included_amount(&ctx.accounts.token_mint_b, delta_b)?;
+    let transfer_fee_included_delta_a = calculate_transfer_fee_included_amount(&ctx.accounts.token_mint_a, delta_a)?;
+    let transfer_fee_included_delta_b = calculate_transfer_fee_included_amount(&ctx.accounts.token_mint_b, delta_b)?;
 
-    // token_max_a and token_max_b should be applied to the transfer fee included amount
+    // token_max_a and token_max_b should be applied to the transfer fee included
+    // amount
     if transfer_fee_included_delta_a.amount > token_max_a {
         return Err(ErrorCode::TokenMaxExceeded.into());
     }

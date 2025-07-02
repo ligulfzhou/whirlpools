@@ -1,10 +1,11 @@
-use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{Mint, TokenInterface};
-
-use crate::{
-    events::*,
-    state::*,
-    util::{initialize_vault_token_account, verify_supported_token_mint},
+use {
+    crate::{
+        events::*,
+        state::*,
+        util::{initialize_vault_token_account, verify_supported_token_mint},
+    },
+    anchor_lang::prelude::*,
+    anchor_spl::token_interface::{Mint, TokenInterface},
 };
 
 #[derive(Accounts)]
@@ -57,11 +58,7 @@ pub struct InitializePoolV2<'info> {
     pub rent: Sysvar<'info, Rent>,
 }
 
-pub fn handler(
-    ctx: Context<InitializePoolV2>,
-    tick_spacing: u16,
-    initial_sqrt_price: u128,
-) -> Result<()> {
+pub fn handler(ctx: Context<InitializePoolV2>, tick_spacing: u16, initial_sqrt_price: u128) -> Result<()> {
     let token_mint_a = ctx.accounts.token_mint_a.key();
     let token_mint_b = ctx.accounts.token_mint_b.key();
 

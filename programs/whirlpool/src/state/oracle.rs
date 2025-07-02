@@ -1,30 +1,38 @@
-use crate::errors::ErrorCode;
-use crate::math::{increasing_price_order, sqrt_price_from_tick_index, U256Muldiv, Q64_RESOLUTION};
-use crate::state::Whirlpool;
-use anchor_lang::prelude::*;
-use std::cell::{Ref, RefMut};
-
-use super::TICK_ARRAY_SIZE;
+use {
+    super::TICK_ARRAY_SIZE,
+    crate::{
+        errors::ErrorCode,
+        math::{increasing_price_order, sqrt_price_from_tick_index, U256Muldiv, Q64_RESOLUTION},
+        state::Whirlpool,
+    },
+    anchor_lang::prelude::*,
+    std::cell::{Ref, RefMut},
+};
 
 pub const MAX_TRADE_ENABLE_TIMESTAMP_DELTA: u64 = 60 * 60 * 72; // 72 hours
 
 // This constant is used to scale the value of the volatility accumulator.
-// The value of the volatility accumulator is decayed by the reduction factor and used as a new reference.
-// However, if the volatility accumulator is simply the difference in tick_group_index, a value of 1 would quickly decay to 0.
-// By scaling 1 to 10,000, for example, if the reduction factor is 0.5, the resulting value would be 5,000.
+// The value of the volatility accumulator is decayed by the reduction factor
+// and used as a new reference. However, if the volatility accumulator is simply
+// the difference in tick_group_index, a value of 1 would quickly decay to 0. By
+// scaling 1 to 10,000, for example, if the reduction factor is 0.5, the
+// resulting value would be 5,000.
 pub const VOLATILITY_ACCUMULATOR_SCALE_FACTOR: u16 = 10_000;
 
 // The denominator of the reduction factor.
 // When the reduction_factor is 5_000, the reduction factor functions as 0.5.
 pub const REDUCTION_FACTOR_DENOMINATOR: u16 = 10_000;
 
-// adaptive_fee_control_factor is used to map the square of the volatility accumulator to the fee rate.
-// A larger value increases the fee rate quickly even for small volatility, while a smaller value increases the fee rate more gradually even for high volatility.
-// When the adaptive_fee_control_factor is 1_000, the adaptive fee control factor functions as 0.01.
+// adaptive_fee_control_factor is used to map the square of the volatility
+// accumulator to the fee rate. A larger value increases the fee rate quickly
+// even for small volatility, while a smaller value increases the fee rate more
+// gradually even for high volatility. When the adaptive_fee_control_factor is
+// 1_000, the adaptive fee control factor functions as 0.01.
 pub const ADAPTIVE_FEE_CONTROL_FACTOR_DENOMINATOR: u32 = 100_000;
 
-// The time (in seconds) to forcibly reset the reference if it is not updated for a long time.
-// A recovery measure against the act of intentionally repeating major swaps to keep the Adaptive Fee high (DoS).
+// The time (in seconds) to forcibly reset the reference if it is not updated
+// for a long time. A recovery measure against the act of intentionally
+// repeating major swaps to keep the Adaptive Fee high (DoS).
 pub const MAX_REFERENCE_AGE: u64 = 3_600; // 1 hour
 
 #[zero_copy(unsafe)]
@@ -85,7 +93,8 @@ impl AdaptiveFeeConstants {
         }
 
         // max_volatility_accumulator validation
-        // this constraint is to prevent overflow at FeeRateManager::compute_adaptive_fee_rate
+        // this constraint is to prevent overflow at
+        // FeeRateManager::compute_adaptive_fee_rate
         if u64::from(max_volatility_accumulator) * u64::from(tick_group_size) > u32::MAX as u64 {
             return false;
         }
@@ -96,19 +105,15 @@ impl AdaptiveFeeConstants {
         }
 
         // tick_group_size validation
-        if tick_group_size == 0
-            || tick_group_size > tick_spacing
-            || tick_spacing % tick_group_size != 0
-        {
+        if tick_group_size == 0 || tick_group_size > tick_spacing || tick_spacing % tick_group_size != 0 {
             return false;
         }
 
         // major_swap_threshold_ticks validation
-        // there is no clear upper limit for major_swap_threshold_ticks, but as a safeguard, we set the limit to ticks in a TickArray
+        // there is no clear upper limit for major_swap_threshold_ticks, but as a
+        // safeguard, we set the limit to ticks in a TickArray
         let ticks_in_tick_array = tick_spacing as i32 * TICK_ARRAY_SIZE;
-        if major_swap_threshold_ticks == 0
-            || major_swap_threshold_ticks as i32 > ticks_in_tick_array
-        {
+        if major_swap_threshold_ticks == 0 || major_swap_threshold_ticks as i32 > ticks_in_tick_array {
             return false;
         }
 
@@ -143,8 +148,8 @@ impl AdaptiveFeeVariables {
         adaptive_fee_constants: &AdaptiveFeeConstants,
     ) -> Result<()> {
         let index_delta = (self.tick_group_index_reference - tick_group_index).unsigned_abs();
-        let volatility_accumulator = u64::from(self.volatility_reference)
-            + u64::from(index_delta) * u64::from(VOLATILITY_ACCUMULATOR_SCALE_FACTOR);
+        let volatility_accumulator = u64::from(self.volatility_reference) +
+            u64::from(index_delta) * u64::from(VOLATILITY_ACCUMULATOR_SCALE_FACTOR);
 
         self.volatility_accumulator = std::cmp::min(
             volatility_accumulator,
@@ -160,9 +165,7 @@ impl AdaptiveFeeVariables {
         current_timestamp: u64,
         adaptive_fee_constants: &AdaptiveFeeConstants,
     ) -> Result<()> {
-        let max_timestamp = self
-            .last_reference_update_timestamp
-            .max(self.last_major_swap_timestamp);
+        let max_timestamp = self.last_reference_update_timestamp.max(self.last_major_swap_timestamp);
         if current_timestamp < max_timestamp {
             return Err(ErrorCode::InvalidTimestamp.into());
         }
@@ -183,10 +186,9 @@ impl AdaptiveFeeVariables {
         } else if elapsed < adaptive_fee_constants.decay_period as u64 {
             // NOT high frequency trade
             self.tick_group_index_reference = tick_group_index;
-            self.volatility_reference = (u64::from(self.volatility_accumulator)
-                * u64::from(adaptive_fee_constants.reduction_factor)
-                / u64::from(REDUCTION_FACTOR_DENOMINATOR))
-                as u32;
+            self.volatility_reference = (u64::from(self.volatility_accumulator) *
+                u64::from(adaptive_fee_constants.reduction_factor) /
+                u64::from(REDUCTION_FACTOR_DENOMINATOR)) as u32;
             self.last_reference_update_timestamp = current_timestamp;
         } else {
             // Out of decay time window
@@ -215,26 +217,26 @@ impl AdaptiveFeeVariables {
         Ok(())
     }
 
-    // Determine whether the difference between pre_sqrt_price and post_sqrt_price is equivalent to major_swap_threshold_ticks or more
-    // Note: The error of less than 0.00000003% due to integer arithmetic of sqrt_price is acceptable
-    fn is_major_swap(
-        pre_sqrt_price: u128,
-        post_sqrt_price: u128,
-        major_swap_threshold_ticks: u16,
-    ) -> Result<bool> {
-        let (smaller_sqrt_price, larger_sqrt_price) =
-            increasing_price_order(pre_sqrt_price, post_sqrt_price);
+    // Determine whether the difference between pre_sqrt_price and post_sqrt_price
+    // is equivalent to major_swap_threshold_ticks or more Note: The error of
+    // less than 0.00000003% due to integer arithmetic of sqrt_price is acceptable
+    fn is_major_swap(pre_sqrt_price: u128, post_sqrt_price: u128, major_swap_threshold_ticks: u16) -> Result<bool> {
+        let (smaller_sqrt_price, larger_sqrt_price) = increasing_price_order(pre_sqrt_price, post_sqrt_price);
 
         // major_swap_sqrt_price_target
         //   = smaller_sqrt_price * sqrt(pow(1.0001, major_swap_threshold_ticks))
-        //   = smaller_sqrt_price * sqrt_price_from_tick_index(major_swap_threshold_ticks) >> Q64_RESOLUTION
+        //   = smaller_sqrt_price *
+        // sqrt_price_from_tick_index(major_swap_threshold_ticks) >> Q64_RESOLUTION
         //
-        // Note: The following two are theoretically equal, but there is an integer arithmetic error.
-        //       However, the error impact is less than 0.00000003% in sqrt price (x64) and is small enough.
-        //       - sqrt_price_from_tick_index(a) * sqrt_price_from_tick_index(b) >> Q64_RESOLUTION   (mathematically, sqrt(pow(1.0001, a)) * sqrt(pow(1.0001, b)) = sqrt(pow(1.0001, a + b)))
-        //       - sqrt_price_from_tick_index(a + b)                                                 (mathematically, sqrt(pow(1.0001, a + b)))
-        let major_swap_sqrt_price_factor =
-            sqrt_price_from_tick_index(major_swap_threshold_ticks as i32);
+        // Note: The following two are theoretically equal, but there is an integer
+        // arithmetic error.       However, the error impact is less than
+        // 0.00000003% in sqrt price (x64) and is small enough.
+        //       - sqrt_price_from_tick_index(a) * sqrt_price_from_tick_index(b) >>
+        //         Q64_RESOLUTION   (mathematically, sqrt(pow(1.0001, a)) *
+        //         sqrt(pow(1.0001, b)) = sqrt(pow(1.0001, a + b)))
+        //       - sqrt_price_from_tick_index(a + b)
+        //         (mathematically, sqrt(pow(1.0001, a + b)))
+        let major_swap_sqrt_price_factor = sqrt_price_from_tick_index(major_swap_threshold_ticks as i32);
         let major_swap_sqrt_price_target = U256Muldiv::new(0, smaller_sqrt_price)
             .mul(U256Muldiv::new(0, major_swap_sqrt_price_factor))
             .shift_right(Q64_RESOLUTION as u32)
@@ -349,12 +351,8 @@ pub struct OracleAccessor<'info> {
 }
 
 impl<'info> OracleAccessor<'info> {
-    pub fn new(
-        whirlpool: &Account<'info, Whirlpool>,
-        oracle_account_info: AccountInfo<'info>,
-    ) -> Result<Self> {
-        let oracle_account_initialized =
-            Self::is_oracle_account_initialized(&oracle_account_info, whirlpool.key())?;
+    pub fn new(whirlpool: &Account<'info, Whirlpool>, oracle_account_info: AccountInfo<'info>) -> Result<Self> {
+        let oracle_account_initialized = Self::is_oracle_account_initialized(&oracle_account_info, whirlpool.key())?;
         Ok(Self {
             oracle_account_info,
             oracle_account_initialized,
@@ -382,12 +380,10 @@ impl<'info> OracleAccessor<'info> {
         }))
     }
 
-    pub fn update_adaptive_fee_variables(
-        &self,
-        adaptive_fee_info: &Option<AdaptiveFeeInfo>,
-    ) -> Result<()> {
+    pub fn update_adaptive_fee_variables(&self, adaptive_fee_info: &Option<AdaptiveFeeInfo>) -> Result<()> {
         // If the Oracle account is not initialized, load_mut access will be skipped.
-        // In other words, no need for writable flag on the Oracle account if it is not initialized.
+        // In other words, no need for writable flag on the Oracle account if it is not
+        // initialized.
 
         match (self.oracle_account_initialized, adaptive_fee_info) {
             // Oracle account has been initialized and adaptive fee info is provided
@@ -402,17 +398,16 @@ impl<'info> OracleAccessor<'info> {
         }
     }
 
-    fn is_oracle_account_initialized(
-        oracle_account_info: &AccountInfo<'info>,
-        whirlpool: Pubkey,
-    ) -> Result<bool> {
+    fn is_oracle_account_initialized(oracle_account_info: &AccountInfo<'info>, whirlpool: Pubkey) -> Result<bool> {
         use anchor_lang::Discriminator;
 
-        // following process is ported from anchor-lang's AccountLoader::try_from and AccountLoader::load_mut
-        // AccountLoader can handle initialized account and partially initialized (owner program changed) account only.
-        // So we need to handle uninitialized account manually.
+        // following process is ported from anchor-lang's AccountLoader::try_from and
+        // AccountLoader::load_mut AccountLoader can handle initialized account
+        // and partially initialized (owner program changed) account only. So we
+        // need to handle uninitialized account manually.
 
-        // Note: intentionally do not check if the account is writable here, defer the evaluation until load_mut is called
+        // Note: intentionally do not check if the account is writable here, defer the
+        // evaluation until load_mut is called
 
         // uninitialized account (owned by system program and its data size is zero)
         if oracle_account_info.owner == &System::id() && oracle_account_info.data_is_empty() {
@@ -422,10 +417,8 @@ impl<'info> OracleAccessor<'info> {
 
         // owner program check
         if oracle_account_info.owner != &Oracle::owner() {
-            return Err(
-                Error::from(anchor_lang::error::ErrorCode::AccountOwnedByWrongProgram)
-                    .with_pubkeys((*oracle_account_info.owner, Oracle::owner())),
-            );
+            return Err(Error::from(anchor_lang::error::ErrorCode::AccountOwnedByWrongProgram)
+                .with_pubkeys((*oracle_account_info.owner, Oracle::owner())));
         }
 
         let data = oracle_account_info.try_borrow_data()?;
@@ -443,7 +436,8 @@ impl<'info> OracleAccessor<'info> {
             bytemuck::from_bytes(&data[8..std::mem::size_of::<Oracle>() + 8])
         });
         if oracle_ref.whirlpool != whirlpool {
-            // Just for safety: Oracle address is derived from Whirlpool address, so this should not happen.
+            // Just for safety: Oracle address is derived from Whirlpool address, so this
+            // should not happen.
             unreachable!();
         }
 
@@ -516,16 +510,13 @@ mod data_layout_tests {
         offset += 2;
         af_const_data[offset..offset + 2].copy_from_slice(&af_const_reduction_factor.to_le_bytes());
         offset += 2;
-        af_const_data[offset..offset + 4]
-            .copy_from_slice(&af_const_adaptive_fee_control_factor.to_le_bytes());
+        af_const_data[offset..offset + 4].copy_from_slice(&af_const_adaptive_fee_control_factor.to_le_bytes());
         offset += 4;
-        af_const_data[offset..offset + 4]
-            .copy_from_slice(&af_const_max_volatility_accumulator.to_le_bytes());
+        af_const_data[offset..offset + 4].copy_from_slice(&af_const_max_volatility_accumulator.to_le_bytes());
         offset += 4;
         af_const_data[offset..offset + 2].copy_from_slice(&af_const_tick_group_size.to_le_bytes());
         offset += 2;
-        af_const_data[offset..offset + 2]
-            .copy_from_slice(&af_const_major_swap_threshold_ticks.to_le_bytes());
+        af_const_data[offset..offset + 2].copy_from_slice(&af_const_major_swap_threshold_ticks.to_le_bytes());
         offset += 2;
         offset += af_const_reserved.len();
 
@@ -534,19 +525,15 @@ mod data_layout_tests {
         // manually build the expected AdaptiveFeeVariables data layout
         let mut af_var_data = [0u8; AdaptiveFeeVariables::LEN];
         let mut offset = 0;
-        af_var_data[offset..offset + 8]
-            .copy_from_slice(&af_var_last_reference_update_timestamp.to_le_bytes());
+        af_var_data[offset..offset + 8].copy_from_slice(&af_var_last_reference_update_timestamp.to_le_bytes());
         offset += 8;
-        af_var_data[offset..offset + 8]
-            .copy_from_slice(&af_var_last_major_swap_timestamp.to_le_bytes());
+        af_var_data[offset..offset + 8].copy_from_slice(&af_var_last_major_swap_timestamp.to_le_bytes());
         offset += 8;
         af_var_data[offset..offset + 4].copy_from_slice(&af_var_volatility_reference.to_le_bytes());
         offset += 4;
-        af_var_data[offset..offset + 4]
-            .copy_from_slice(&af_var_tick_group_index_reference.to_le_bytes());
+        af_var_data[offset..offset + 4].copy_from_slice(&af_var_tick_group_index_reference.to_le_bytes());
         offset += 4;
-        af_var_data[offset..offset + 4]
-            .copy_from_slice(&af_var_volatility_accumulator.to_le_bytes());
+        af_var_data[offset..offset + 4].copy_from_slice(&af_var_volatility_accumulator.to_le_bytes());
         offset += 4;
         offset += af_var_reserved.len();
 
@@ -558,8 +545,7 @@ mod data_layout_tests {
         let mut offset = 0;
         oracle_data[offset..offset + 32].copy_from_slice(oracle_whirlpool.as_ref());
         offset += 32;
-        oracle_data[offset..offset + 8]
-            .copy_from_slice(&oracle_trade_enable_timestamp.to_le_bytes());
+        oracle_data[offset..offset + 8].copy_from_slice(&oracle_trade_enable_timestamp.to_le_bytes());
         offset += 8;
         oracle_data[offset..offset + AdaptiveFeeConstants::LEN].copy_from_slice(&af_const_data);
         offset += AdaptiveFeeConstants::LEN;
@@ -584,72 +570,53 @@ mod data_layout_tests {
         assert_eq!(read_af_const_decay_period, af_const_decay_period);
         let read_af_const_reduction_factor = oracle.adaptive_fee_constants.reduction_factor;
         assert_eq!(read_af_const_reduction_factor, af_const_reduction_factor);
-        let read_af_const_adaptive_fee_control_factor =
-            oracle.adaptive_fee_constants.adaptive_fee_control_factor;
+        let read_af_const_adaptive_fee_control_factor = oracle.adaptive_fee_constants.adaptive_fee_control_factor;
         assert_eq!(
             read_af_const_adaptive_fee_control_factor,
             af_const_adaptive_fee_control_factor
         );
-        let read_af_const_max_volatility_accumulator =
-            oracle.adaptive_fee_constants.max_volatility_accumulator;
+        let read_af_const_max_volatility_accumulator = oracle.adaptive_fee_constants.max_volatility_accumulator;
         assert_eq!(
             read_af_const_max_volatility_accumulator,
             af_const_max_volatility_accumulator
         );
         let read_af_const_tick_group_size = oracle.adaptive_fee_constants.tick_group_size;
         assert_eq!(read_af_const_tick_group_size, af_const_tick_group_size);
-        let read_af_const_major_swap_threshold_ticks =
-            oracle.adaptive_fee_constants.major_swap_threshold_ticks;
+        let read_af_const_major_swap_threshold_ticks = oracle.adaptive_fee_constants.major_swap_threshold_ticks;
         assert_eq!(
             read_af_const_major_swap_threshold_ticks,
             af_const_major_swap_threshold_ticks
         );
 
-        let read_af_var_last_reference_update_timestamp = oracle
-            .adaptive_fee_variables
-            .last_reference_update_timestamp;
+        let read_af_var_last_reference_update_timestamp = oracle.adaptive_fee_variables.last_reference_update_timestamp;
         assert_eq!(
             read_af_var_last_reference_update_timestamp,
             af_var_last_reference_update_timestamp
         );
-        let read_af_var_last_major_swap_timestamp =
-            oracle.adaptive_fee_variables.last_major_swap_timestamp;
-        assert_eq!(
-            read_af_var_last_major_swap_timestamp,
-            af_var_last_major_swap_timestamp
-        );
+        let read_af_var_last_major_swap_timestamp = oracle.adaptive_fee_variables.last_major_swap_timestamp;
+        assert_eq!(read_af_var_last_major_swap_timestamp, af_var_last_major_swap_timestamp);
         let read_af_var_volatility_reference = oracle.adaptive_fee_variables.volatility_reference;
-        assert_eq!(
-            read_af_var_volatility_reference,
-            af_var_volatility_reference
-        );
-        let read_af_var_tick_group_index_reference =
-            oracle.adaptive_fee_variables.tick_group_index_reference;
+        assert_eq!(read_af_var_volatility_reference, af_var_volatility_reference);
+        let read_af_var_tick_group_index_reference = oracle.adaptive_fee_variables.tick_group_index_reference;
         assert_eq!(
             read_af_var_tick_group_index_reference,
             af_var_tick_group_index_reference
         );
-        let read_af_var_volatility_accumulator =
-            oracle.adaptive_fee_variables.volatility_accumulator;
-        assert_eq!(
-            read_af_var_volatility_accumulator,
-            af_var_volatility_accumulator
-        );
+        let read_af_var_volatility_accumulator = oracle.adaptive_fee_variables.volatility_accumulator;
+        assert_eq!(read_af_var_volatility_accumulator, af_var_volatility_accumulator);
     }
 }
 
 #[cfg(test)]
 mod oracle_accessor_test {
-    use super::*;
-    use crate::util::test_utils::account_info_mock::AccountInfoMock;
+    use {super::*, crate::util::test_utils::account_info_mock::AccountInfoMock};
 
     #[test]
     fn new_with_uninitialized_oracle_account_not_writable() {
         let is_writable = false;
 
         let whirlpool_address = Pubkey::new_unique();
-        let mut account_info_mock =
-            AccountInfoMock::new_whirlpool(whirlpool_address, 64, 5650, None);
+        let mut account_info_mock = AccountInfoMock::new_whirlpool(whirlpool_address, 64, 5650, None);
         let account_info = account_info_mock.to_account_info(false);
         let whirlpool = Account::<Whirlpool>::try_from(&account_info).unwrap();
 
@@ -667,8 +634,7 @@ mod oracle_accessor_test {
         let is_writable = true;
 
         let whirlpool_address = Pubkey::new_unique();
-        let mut account_info_mock =
-            AccountInfoMock::new_whirlpool(whirlpool_address, 64, 5650, None);
+        let mut account_info_mock = AccountInfoMock::new_whirlpool(whirlpool_address, 64, 5650, None);
         let account_info = account_info_mock.to_account_info(false);
         let whirlpool = Account::<Whirlpool>::try_from(&account_info).unwrap();
 
@@ -686,8 +652,7 @@ mod oracle_accessor_test {
         let is_writable = false;
 
         let whirlpool_address = Pubkey::new_unique();
-        let mut account_info_mock =
-            AccountInfoMock::new_whirlpool(whirlpool_address, 64, 5650, None);
+        let mut account_info_mock = AccountInfoMock::new_whirlpool(whirlpool_address, 64, 5650, None);
         let account_info = account_info_mock.to_account_info(false);
         let whirlpool = Account::<Whirlpool>::try_from(&account_info).unwrap();
 
@@ -711,8 +676,7 @@ mod oracle_accessor_test {
         let is_writable = true;
 
         let whirlpool_address = Pubkey::new_unique();
-        let mut account_info_mock =
-            AccountInfoMock::new_whirlpool(whirlpool_address, 64, 5650, None);
+        let mut account_info_mock = AccountInfoMock::new_whirlpool(whirlpool_address, 64, 5650, None);
         let account_info = account_info_mock.to_account_info(false);
         let whirlpool = Account::<Whirlpool>::try_from(&account_info).unwrap();
 
@@ -734,8 +698,7 @@ mod oracle_accessor_test {
     #[test]
     fn fail_new_wrong_owner_program() {
         let whirlpool_address = Pubkey::new_unique();
-        let mut account_info_mock =
-            AccountInfoMock::new_whirlpool(whirlpool_address, 64, 5650, None);
+        let mut account_info_mock = AccountInfoMock::new_whirlpool(whirlpool_address, 64, 5650, None);
         let account_info = account_info_mock.to_account_info(false);
         let whirlpool = Account::<Whirlpool>::try_from(&account_info).unwrap();
 
@@ -753,25 +716,19 @@ mod oracle_accessor_test {
 
         let result = OracleAccessor::new(&whirlpool, account_info);
         assert!(result.is_err());
-        assert!(result
-            .err()
-            .unwrap()
-            .to_string()
-            .contains("AccountOwnedByWrongProgram"));
+        assert!(result.err().unwrap().to_string().contains("AccountOwnedByWrongProgram"));
     }
 
     #[test]
     fn fail_new_discriminator_not_found() {
         let whirlpool_address = Pubkey::new_unique();
-        let mut account_info_mock =
-            AccountInfoMock::new_whirlpool(whirlpool_address, 64, 5650, None);
+        let mut account_info_mock = AccountInfoMock::new_whirlpool(whirlpool_address, 64, 5650, None);
         let account_info = account_info_mock.to_account_info(false);
         let whirlpool = Account::<Whirlpool>::try_from(&account_info).unwrap();
 
         let account_address = Pubkey::new_unique();
         // 7 bytes is too short to contain the discriminator
-        let mut account_info_mock =
-            AccountInfoMock::new(account_address, vec![0u8; 7], Oracle::owner());
+        let mut account_info_mock = AccountInfoMock::new(account_address, vec![0u8; 7], Oracle::owner());
         let account_info = account_info_mock.to_account_info(true);
 
         let result = OracleAccessor::new(&whirlpool, account_info);
@@ -788,14 +745,12 @@ mod oracle_accessor_test {
         let is_writable = false;
 
         let whirlpool_address = Pubkey::new_unique();
-        let mut account_info_mock =
-            AccountInfoMock::new_whirlpool(whirlpool_address, 64, 5650, None);
+        let mut account_info_mock = AccountInfoMock::new_whirlpool(whirlpool_address, 64, 5650, None);
         let account_info = account_info_mock.to_account_info(false);
         let whirlpool = Account::<Whirlpool>::try_from(&account_info).unwrap();
 
         let account_address = Pubkey::new_unique();
-        let mut account_info_mock =
-            AccountInfoMock::new(account_address, vec![0u8; Oracle::LEN], Oracle::owner());
+        let mut account_info_mock = AccountInfoMock::new(account_address, vec![0u8; Oracle::LEN], Oracle::owner());
         let account_info = account_info_mock.to_account_info(is_writable);
 
         let result = OracleAccessor::new(&whirlpool, account_info);
@@ -811,8 +766,7 @@ mod oracle_accessor_test {
     #[should_panic]
     fn panic_new_whirlpool_mismatch() {
         let whirlpool_address = Pubkey::new_unique();
-        let mut account_info_mock =
-            AccountInfoMock::new_whirlpool(whirlpool_address, 64, 5650, None);
+        let mut account_info_mock = AccountInfoMock::new_whirlpool(whirlpool_address, 64, 5650, None);
         let account_info = account_info_mock.to_account_info(false);
         let whirlpool = Account::<Whirlpool>::try_from(&account_info).unwrap();
 
@@ -834,8 +788,7 @@ mod oracle_accessor_test {
     #[test]
     fn is_trade_enabled_with_initialized_oracle_account() {
         let whirlpool_address = Pubkey::new_unique();
-        let mut account_info_mock =
-            AccountInfoMock::new_whirlpool(whirlpool_address, 64, 5650, None);
+        let mut account_info_mock = AccountInfoMock::new_whirlpool(whirlpool_address, 64, 5650, None);
         let account_info = account_info_mock.to_account_info(false);
         let whirlpool = Account::<Whirlpool>::try_from(&account_info).unwrap();
 
@@ -857,40 +810,23 @@ mod oracle_accessor_test {
 
         // not tradable
         assert!(!accessor.is_trade_enabled(0).unwrap());
-        assert!(!accessor
-            .is_trade_enabled(trade_enable_timestamp / 2)
-            .unwrap());
-        assert!(!accessor
-            .is_trade_enabled(trade_enable_timestamp - 10)
-            .unwrap());
-        assert!(!accessor
-            .is_trade_enabled(trade_enable_timestamp - 2)
-            .unwrap());
-        assert!(!accessor
-            .is_trade_enabled(trade_enable_timestamp - 1)
-            .unwrap());
+        assert!(!accessor.is_trade_enabled(trade_enable_timestamp / 2).unwrap());
+        assert!(!accessor.is_trade_enabled(trade_enable_timestamp - 10).unwrap());
+        assert!(!accessor.is_trade_enabled(trade_enable_timestamp - 2).unwrap());
+        assert!(!accessor.is_trade_enabled(trade_enable_timestamp - 1).unwrap());
         // tradable
         assert!(accessor.is_trade_enabled(trade_enable_timestamp).unwrap());
-        assert!(accessor
-            .is_trade_enabled(trade_enable_timestamp + 1)
-            .unwrap());
-        assert!(accessor
-            .is_trade_enabled(trade_enable_timestamp + 2)
-            .unwrap());
-        assert!(accessor
-            .is_trade_enabled(trade_enable_timestamp + 10)
-            .unwrap());
-        assert!(accessor
-            .is_trade_enabled(trade_enable_timestamp * 2)
-            .unwrap());
+        assert!(accessor.is_trade_enabled(trade_enable_timestamp + 1).unwrap());
+        assert!(accessor.is_trade_enabled(trade_enable_timestamp + 2).unwrap());
+        assert!(accessor.is_trade_enabled(trade_enable_timestamp + 10).unwrap());
+        assert!(accessor.is_trade_enabled(trade_enable_timestamp * 2).unwrap());
         assert!(accessor.is_trade_enabled(u64::MAX).unwrap());
     }
 
     #[test]
     fn is_trade_enabled_with_uninitialized_oracle_account() {
         let whirlpool_address = Pubkey::new_unique();
-        let mut account_info_mock =
-            AccountInfoMock::new_whirlpool(whirlpool_address, 64, 5650, None);
+        let mut account_info_mock = AccountInfoMock::new_whirlpool(whirlpool_address, 64, 5650, None);
         let account_info = account_info_mock.to_account_info(false);
         let whirlpool = Account::<Whirlpool>::try_from(&account_info).unwrap();
 
@@ -921,8 +857,7 @@ mod oracle_accessor_test {
     #[test]
     fn get_adaptive_fee_info_with_initialized_oracle_account() {
         let whirlpool_address = Pubkey::new_unique();
-        let mut account_info_mock =
-            AccountInfoMock::new_whirlpool(whirlpool_address, 64, 5650, None);
+        let mut account_info_mock = AccountInfoMock::new_whirlpool(whirlpool_address, 64, 5650, None);
         let account_info = account_info_mock.to_account_info(false);
         let whirlpool = Account::<Whirlpool>::try_from(&account_info).unwrap();
 
@@ -984,8 +919,7 @@ mod oracle_accessor_test {
     #[test]
     fn get_adaptive_fee_info_with_uninitialized_oracle_account() {
         let whirlpool_address = Pubkey::new_unique();
-        let mut account_info_mock =
-            AccountInfoMock::new_whirlpool(whirlpool_address, 64, 5650, None);
+        let mut account_info_mock = AccountInfoMock::new_whirlpool(whirlpool_address, 64, 5650, None);
         let account_info = account_info_mock.to_account_info(false);
         let whirlpool = Account::<Whirlpool>::try_from(&account_info).unwrap();
 
@@ -1006,8 +940,7 @@ mod oracle_accessor_test {
     #[test]
     fn update_adaptive_fee_variables_some_initialized() {
         let whirlpool_address = Pubkey::new_unique();
-        let mut account_info_mock =
-            AccountInfoMock::new_whirlpool(whirlpool_address, 64, 5650, None);
+        let mut account_info_mock = AccountInfoMock::new_whirlpool(whirlpool_address, 64, 5650, None);
         let account_info = account_info_mock.to_account_info(false);
         let whirlpool = Account::<Whirlpool>::try_from(&account_info).unwrap();
 
@@ -1063,8 +996,7 @@ mod oracle_accessor_test {
     #[should_panic]
     fn panic_update_adaptive_fee_variables_none_initialized() {
         let whirlpool_address = Pubkey::new_unique();
-        let mut account_info_mock =
-            AccountInfoMock::new_whirlpool(whirlpool_address, 64, 5650, None);
+        let mut account_info_mock = AccountInfoMock::new_whirlpool(whirlpool_address, 64, 5650, None);
         let account_info = account_info_mock.to_account_info(false);
         let whirlpool = Account::<Whirlpool>::try_from(&account_info).unwrap();
 
@@ -1087,8 +1019,7 @@ mod oracle_accessor_test {
     #[should_panic]
     fn panic_update_adaptive_fee_variables_some_uninitialized() {
         let whirlpool_address = Pubkey::new_unique();
-        let mut account_info_mock =
-            AccountInfoMock::new_whirlpool(whirlpool_address, 64, 5650, None);
+        let mut account_info_mock = AccountInfoMock::new_whirlpool(whirlpool_address, 64, 5650, None);
         let account_info = account_info_mock.to_account_info(false);
         let whirlpool = Account::<Whirlpool>::try_from(&account_info).unwrap();
 
@@ -1109,8 +1040,7 @@ mod oracle_accessor_test {
     #[test]
     fn update_adaptive_fee_variables_none_uninitialized() {
         let whirlpool_address = Pubkey::new_unique();
-        let mut account_info_mock =
-            AccountInfoMock::new_whirlpool(whirlpool_address, 64, 5650, None);
+        let mut account_info_mock = AccountInfoMock::new_whirlpool(whirlpool_address, 64, 5650, None);
         let account_info = account_info_mock.to_account_info(false);
         let whirlpool = Account::<Whirlpool>::try_from(&account_info).unwrap();
 
@@ -1128,8 +1058,7 @@ mod oracle_accessor_test {
         let is_writable = false;
 
         let whirlpool_address = Pubkey::new_unique();
-        let mut account_info_mock =
-            AccountInfoMock::new_whirlpool(whirlpool_address, 64, 5650, None);
+        let mut account_info_mock = AccountInfoMock::new_whirlpool(whirlpool_address, 64, 5650, None);
         let account_info = account_info_mock.to_account_info(false);
         let whirlpool = Account::<Whirlpool>::try_from(&account_info).unwrap();
 
@@ -1152,11 +1081,7 @@ mod oracle_accessor_test {
 
         let result = accessor.update_adaptive_fee_variables(&Some(adaptive_fee_info));
         assert!(result.is_err());
-        assert!(result
-            .err()
-            .unwrap()
-            .to_string()
-            .contains("AccountNotMutable"));
+        assert!(result.err().unwrap().to_string().contains("AccountNotMutable"));
     }
 
     #[test]
@@ -1164,8 +1089,7 @@ mod oracle_accessor_test {
         let is_writable = false;
 
         let whirlpool_address = Pubkey::new_unique();
-        let mut account_info_mock =
-            AccountInfoMock::new_whirlpool(whirlpool_address, 64, 5650, None);
+        let mut account_info_mock = AccountInfoMock::new_whirlpool(whirlpool_address, 64, 5650, None);
         let account_info = account_info_mock.to_account_info(false);
         let whirlpool = Account::<Whirlpool>::try_from(&account_info).unwrap();
 
@@ -1217,26 +1141,14 @@ mod oracle_tests {
         assert_eq!(read_af_const_decay_period, decay_period);
         let read_af_const_reduction_factor = oracle.adaptive_fee_constants.reduction_factor;
         assert_eq!(read_af_const_reduction_factor, reduction_factor);
-        let read_af_const_adaptive_fee_control_factor =
-            oracle.adaptive_fee_constants.adaptive_fee_control_factor;
-        assert_eq!(
-            read_af_const_adaptive_fee_control_factor,
-            adaptive_fee_control_factor
-        );
-        let read_af_const_max_volatility_accumulator =
-            oracle.adaptive_fee_constants.max_volatility_accumulator;
-        assert_eq!(
-            read_af_const_max_volatility_accumulator,
-            max_volatility_accumulator
-        );
+        let read_af_const_adaptive_fee_control_factor = oracle.adaptive_fee_constants.adaptive_fee_control_factor;
+        assert_eq!(read_af_const_adaptive_fee_control_factor, adaptive_fee_control_factor);
+        let read_af_const_max_volatility_accumulator = oracle.adaptive_fee_constants.max_volatility_accumulator;
+        assert_eq!(read_af_const_max_volatility_accumulator, max_volatility_accumulator);
         let read_af_const_tick_group_size = oracle.adaptive_fee_constants.tick_group_size;
         assert_eq!(read_af_const_tick_group_size, tick_group_size);
-        let read_af_const_major_swap_threshold_ticks =
-            oracle.adaptive_fee_constants.major_swap_threshold_ticks;
-        assert_eq!(
-            read_af_const_major_swap_threshold_ticks,
-            major_swap_threshold_ticks
-        );
+        let read_af_const_major_swap_threshold_ticks = oracle.adaptive_fee_constants.major_swap_threshold_ticks;
+        assert_eq!(read_af_const_major_swap_threshold_ticks, major_swap_threshold_ticks);
     }
 
     #[test]
@@ -1260,29 +1172,18 @@ mod oracle_tests {
 
         oracle.update_adaptive_fee_variables(variables);
 
-        let read_af_var_last_reference_update_timestamp = oracle
-            .adaptive_fee_variables
-            .last_reference_update_timestamp;
+        let read_af_var_last_reference_update_timestamp = oracle.adaptive_fee_variables.last_reference_update_timestamp;
         assert_eq!(
             read_af_var_last_reference_update_timestamp,
             last_reference_update_timestamp
         );
-        let read_af_var_last_major_swap_timestamp =
-            oracle.adaptive_fee_variables.last_major_swap_timestamp;
-        assert_eq!(
-            read_af_var_last_major_swap_timestamp,
-            last_major_swap_timestamp
-        );
+        let read_af_var_last_major_swap_timestamp = oracle.adaptive_fee_variables.last_major_swap_timestamp;
+        assert_eq!(read_af_var_last_major_swap_timestamp, last_major_swap_timestamp);
         let read_af_var_volatility_reference = oracle.adaptive_fee_variables.volatility_reference;
         assert_eq!(read_af_var_volatility_reference, volatility_reference);
-        let read_af_var_tick_group_index_reference =
-            oracle.adaptive_fee_variables.tick_group_index_reference;
-        assert_eq!(
-            read_af_var_tick_group_index_reference,
-            tick_group_index_reference
-        );
-        let read_af_var_volatility_accumulator =
-            oracle.adaptive_fee_variables.volatility_accumulator;
+        let read_af_var_tick_group_index_reference = oracle.adaptive_fee_variables.tick_group_index_reference;
+        assert_eq!(read_af_var_tick_group_index_reference, tick_group_index_reference);
+        let read_af_var_volatility_accumulator = oracle.adaptive_fee_variables.volatility_accumulator;
         assert_eq!(read_af_var_volatility_accumulator, volatility_accumulator);
     }
 }
@@ -1313,10 +1214,7 @@ mod adaptive_fee_variables_tests {
         volatility_accumulator: u32,
     ) {
         let read_last_reference_update_timestamp = variables.last_reference_update_timestamp;
-        assert_eq!(
-            read_last_reference_update_timestamp,
-            last_reference_update_timestamp
-        );
+        assert_eq!(read_last_reference_update_timestamp, last_reference_update_timestamp);
         let read_last_major_swap_timestamp = variables.last_major_swap_timestamp;
         assert_eq!(read_last_major_swap_timestamp, last_major_swap_timestamp);
         let read_tick_group_index_reference = variables.tick_group_index_reference;
@@ -1335,9 +1233,7 @@ mod adaptive_fee_variables_tests {
             let constants = constants_for_test();
             let mut variables = AdaptiveFeeVariables::default();
 
-            assert!(
-                variables.last_reference_update_timestamp == variables.last_major_swap_timestamp
-            );
+            assert!(variables.last_reference_update_timestamp == variables.last_major_swap_timestamp);
 
             let tick_group_index = 5;
             let current_timestamp = 1738824616;
@@ -1450,8 +1346,7 @@ mod adaptive_fee_variables_tests {
 
             let mut updating = initial;
             assert!(updating.last_reference_update_timestamp == updating.last_major_swap_timestamp);
-            let current_timestamp =
-                initial.last_reference_update_timestamp + constants.filter_period as u64 - 1;
+            let current_timestamp = initial.last_reference_update_timestamp + constants.filter_period as u64 - 1;
             let current_tick_group_index = 5;
 
             // no update (all fields)
@@ -1477,8 +1372,7 @@ mod adaptive_fee_variables_tests {
 
             let mut updating = initial;
             assert!(updating.last_reference_update_timestamp == updating.last_major_swap_timestamp);
-            let current_timestamp =
-                initial.last_reference_update_timestamp + constants.filter_period as u64;
+            let current_timestamp = initial.last_reference_update_timestamp + constants.filter_period as u64;
             let current_tick_group_index = 5;
 
             // should be updated
@@ -1490,8 +1384,8 @@ mod adaptive_fee_variables_tests {
                 current_timestamp,
                 initial.last_major_swap_timestamp,
                 current_tick_group_index,
-                initial.volatility_accumulator * constants.reduction_factor as u32
-                    / REDUCTION_FACTOR_DENOMINATOR as u32,
+                initial.volatility_accumulator * constants.reduction_factor as u32 /
+                    REDUCTION_FACTOR_DENOMINATOR as u32,
                 initial.volatility_accumulator,
             );
         }
@@ -1505,8 +1399,7 @@ mod adaptive_fee_variables_tests {
 
             let mut updating = initial;
             assert!(updating.last_reference_update_timestamp == updating.last_major_swap_timestamp);
-            let current_timestamp =
-                initial.last_reference_update_timestamp + constants.filter_period as u64 + 1;
+            let current_timestamp = initial.last_reference_update_timestamp + constants.filter_period as u64 + 1;
             let current_tick_group_index = 5;
 
             // should be updated
@@ -1518,8 +1411,8 @@ mod adaptive_fee_variables_tests {
                 current_timestamp,
                 initial.last_major_swap_timestamp,
                 current_tick_group_index,
-                initial.volatility_accumulator * constants.reduction_factor as u32
-                    / REDUCTION_FACTOR_DENOMINATOR as u32,
+                initial.volatility_accumulator * constants.reduction_factor as u32 /
+                    REDUCTION_FACTOR_DENOMINATOR as u32,
                 initial.volatility_accumulator,
             );
 
@@ -1527,8 +1420,7 @@ mod adaptive_fee_variables_tests {
 
             let mut updating = initial;
             assert!(updating.last_reference_update_timestamp == updating.last_major_swap_timestamp);
-            let current_timestamp =
-                initial.last_reference_update_timestamp + constants.decay_period as u64 - 1;
+            let current_timestamp = initial.last_reference_update_timestamp + constants.decay_period as u64 - 1;
             let current_tick_group_index = 5;
 
             // should be updated
@@ -1540,8 +1432,8 @@ mod adaptive_fee_variables_tests {
                 current_timestamp,
                 initial.last_major_swap_timestamp,
                 current_tick_group_index,
-                initial.volatility_accumulator * constants.reduction_factor as u32
-                    / REDUCTION_FACTOR_DENOMINATOR as u32,
+                initial.volatility_accumulator * constants.reduction_factor as u32 /
+                    REDUCTION_FACTOR_DENOMINATOR as u32,
                 initial.volatility_accumulator,
             );
         }
@@ -1555,8 +1447,7 @@ mod adaptive_fee_variables_tests {
 
             let mut updating = initial;
             assert!(updating.last_reference_update_timestamp == updating.last_major_swap_timestamp);
-            let current_timestamp =
-                initial.last_reference_update_timestamp + constants.decay_period as u64;
+            let current_timestamp = initial.last_reference_update_timestamp + constants.decay_period as u64;
             let current_tick_group_index = 5;
 
             // should be updated
@@ -1582,8 +1473,7 @@ mod adaptive_fee_variables_tests {
 
             let mut updating = initial;
             assert!(updating.last_reference_update_timestamp == updating.last_major_swap_timestamp);
-            let current_timestamp =
-                initial.last_reference_update_timestamp + constants.decay_period as u64 + 1;
+            let current_timestamp = initial.last_reference_update_timestamp + constants.decay_period as u64 + 1;
             let current_tick_group_index = 5;
 
             // should be updated
@@ -1625,8 +1515,7 @@ mod adaptive_fee_variables_tests {
 
             let mut updating = initial;
             assert!(updating.last_reference_update_timestamp < updating.last_major_swap_timestamp);
-            let current_timestamp =
-                initial.last_major_swap_timestamp + constants.filter_period as u64 - 1;
+            let current_timestamp = initial.last_major_swap_timestamp + constants.filter_period as u64 - 1;
             let current_tick_group_index = 5;
 
             // no update (all fields)
@@ -1652,8 +1541,7 @@ mod adaptive_fee_variables_tests {
 
             let mut updating = initial;
             assert!(updating.last_reference_update_timestamp < updating.last_major_swap_timestamp);
-            let current_timestamp =
-                initial.last_major_swap_timestamp + constants.filter_period as u64;
+            let current_timestamp = initial.last_major_swap_timestamp + constants.filter_period as u64;
             let current_tick_group_index = 5;
 
             // should be updated
@@ -1665,8 +1553,8 @@ mod adaptive_fee_variables_tests {
                 current_timestamp,
                 initial.last_major_swap_timestamp,
                 current_tick_group_index,
-                initial.volatility_accumulator * constants.reduction_factor as u32
-                    / REDUCTION_FACTOR_DENOMINATOR as u32,
+                initial.volatility_accumulator * constants.reduction_factor as u32 /
+                    REDUCTION_FACTOR_DENOMINATOR as u32,
                 initial.volatility_accumulator,
             );
         }
@@ -1680,8 +1568,7 @@ mod adaptive_fee_variables_tests {
 
             let mut updating = initial;
             assert!(updating.last_reference_update_timestamp < updating.last_major_swap_timestamp);
-            let current_timestamp =
-                initial.last_major_swap_timestamp + constants.filter_period as u64 + 1;
+            let current_timestamp = initial.last_major_swap_timestamp + constants.filter_period as u64 + 1;
             let current_tick_group_index = 5;
 
             // should be updated
@@ -1693,8 +1580,8 @@ mod adaptive_fee_variables_tests {
                 current_timestamp,
                 initial.last_major_swap_timestamp,
                 current_tick_group_index,
-                initial.volatility_accumulator * constants.reduction_factor as u32
-                    / REDUCTION_FACTOR_DENOMINATOR as u32,
+                initial.volatility_accumulator * constants.reduction_factor as u32 /
+                    REDUCTION_FACTOR_DENOMINATOR as u32,
                 initial.volatility_accumulator,
             );
 
@@ -1702,8 +1589,7 @@ mod adaptive_fee_variables_tests {
 
             let mut updating = initial;
             assert!(updating.last_reference_update_timestamp < updating.last_major_swap_timestamp);
-            let current_timestamp =
-                initial.last_major_swap_timestamp + constants.decay_period as u64 - 1;
+            let current_timestamp = initial.last_major_swap_timestamp + constants.decay_period as u64 - 1;
             let current_tick_group_index = 5;
 
             // should be updated
@@ -1715,8 +1601,8 @@ mod adaptive_fee_variables_tests {
                 current_timestamp,
                 initial.last_major_swap_timestamp,
                 current_tick_group_index,
-                initial.volatility_accumulator * constants.reduction_factor as u32
-                    / REDUCTION_FACTOR_DENOMINATOR as u32,
+                initial.volatility_accumulator * constants.reduction_factor as u32 /
+                    REDUCTION_FACTOR_DENOMINATOR as u32,
                 initial.volatility_accumulator,
             );
         }
@@ -1730,8 +1616,7 @@ mod adaptive_fee_variables_tests {
 
             let mut updating = initial;
             assert!(updating.last_reference_update_timestamp < updating.last_major_swap_timestamp);
-            let current_timestamp =
-                initial.last_major_swap_timestamp + constants.decay_period as u64;
+            let current_timestamp = initial.last_major_swap_timestamp + constants.decay_period as u64;
             let current_tick_group_index = 5;
 
             // should be updated
@@ -1757,8 +1642,7 @@ mod adaptive_fee_variables_tests {
 
             let mut updating = initial;
             assert!(updating.last_reference_update_timestamp < updating.last_major_swap_timestamp);
-            let current_timestamp =
-                initial.last_major_swap_timestamp + constants.decay_period as u64 + 1;
+            let current_timestamp = initial.last_major_swap_timestamp + constants.decay_period as u64 + 1;
             let current_tick_group_index = 5;
 
             // should be updated
@@ -1800,8 +1684,7 @@ mod adaptive_fee_variables_tests {
 
             let mut updating = initial;
             assert!(updating.last_reference_update_timestamp > updating.last_major_swap_timestamp);
-            let current_timestamp =
-                initial.last_reference_update_timestamp + constants.filter_period as u64 - 1;
+            let current_timestamp = initial.last_reference_update_timestamp + constants.filter_period as u64 - 1;
             let current_tick_group_index = 5;
 
             // no update (all fields)
@@ -1827,8 +1710,7 @@ mod adaptive_fee_variables_tests {
 
             let mut updating = initial;
             assert!(updating.last_reference_update_timestamp > updating.last_major_swap_timestamp);
-            let current_timestamp =
-                initial.last_reference_update_timestamp + constants.filter_period as u64;
+            let current_timestamp = initial.last_reference_update_timestamp + constants.filter_period as u64;
             let current_tick_group_index = 5;
 
             // should be updated
@@ -1840,8 +1722,8 @@ mod adaptive_fee_variables_tests {
                 current_timestamp,
                 initial.last_major_swap_timestamp,
                 current_tick_group_index,
-                initial.volatility_accumulator * constants.reduction_factor as u32
-                    / REDUCTION_FACTOR_DENOMINATOR as u32,
+                initial.volatility_accumulator * constants.reduction_factor as u32 /
+                    REDUCTION_FACTOR_DENOMINATOR as u32,
                 initial.volatility_accumulator,
             );
         }
@@ -1855,8 +1737,7 @@ mod adaptive_fee_variables_tests {
 
             let mut updating = initial;
             assert!(updating.last_reference_update_timestamp > updating.last_major_swap_timestamp);
-            let current_timestamp =
-                initial.last_reference_update_timestamp + constants.filter_period as u64 + 1;
+            let current_timestamp = initial.last_reference_update_timestamp + constants.filter_period as u64 + 1;
             let current_tick_group_index = 5;
 
             // should be updated
@@ -1868,8 +1749,8 @@ mod adaptive_fee_variables_tests {
                 current_timestamp,
                 initial.last_major_swap_timestamp,
                 current_tick_group_index,
-                initial.volatility_accumulator * constants.reduction_factor as u32
-                    / REDUCTION_FACTOR_DENOMINATOR as u32,
+                initial.volatility_accumulator * constants.reduction_factor as u32 /
+                    REDUCTION_FACTOR_DENOMINATOR as u32,
                 initial.volatility_accumulator,
             );
 
@@ -1877,8 +1758,7 @@ mod adaptive_fee_variables_tests {
 
             let mut updating = initial;
             assert!(updating.last_reference_update_timestamp > updating.last_major_swap_timestamp);
-            let current_timestamp =
-                initial.last_reference_update_timestamp + constants.decay_period as u64 - 1;
+            let current_timestamp = initial.last_reference_update_timestamp + constants.decay_period as u64 - 1;
             let current_tick_group_index = 5;
 
             // should be updated
@@ -1890,8 +1770,8 @@ mod adaptive_fee_variables_tests {
                 current_timestamp,
                 initial.last_major_swap_timestamp,
                 current_tick_group_index,
-                initial.volatility_accumulator * constants.reduction_factor as u32
-                    / REDUCTION_FACTOR_DENOMINATOR as u32,
+                initial.volatility_accumulator * constants.reduction_factor as u32 /
+                    REDUCTION_FACTOR_DENOMINATOR as u32,
                 initial.volatility_accumulator,
             );
         }
@@ -1905,8 +1785,7 @@ mod adaptive_fee_variables_tests {
 
             let mut updating = initial;
             assert!(updating.last_reference_update_timestamp > updating.last_major_swap_timestamp);
-            let current_timestamp =
-                initial.last_reference_update_timestamp + constants.decay_period as u64;
+            let current_timestamp = initial.last_reference_update_timestamp + constants.decay_period as u64;
             let current_tick_group_index = 5;
 
             // should be updated
@@ -1932,8 +1811,7 @@ mod adaptive_fee_variables_tests {
 
             let mut updating = initial;
             assert!(updating.last_reference_update_timestamp > updating.last_major_swap_timestamp);
-            let current_timestamp =
-                initial.last_reference_update_timestamp + constants.decay_period as u64 + 1;
+            let current_timestamp = initial.last_reference_update_timestamp + constants.decay_period as u64 + 1;
             let current_tick_group_index = 5;
 
             // should be updated
@@ -1991,8 +1869,7 @@ mod adaptive_fee_variables_tests {
                 variables
                     .update_volatility_accumulator(tick_group_index + delta, &constants)
                     .unwrap();
-                let expected_volatility_accumulator =
-                    delta as u32 * VOLATILITY_ACCUMULATOR_SCALE_FACTOR as u32;
+                let expected_volatility_accumulator = delta as u32 * VOLATILITY_ACCUMULATOR_SCALE_FACTOR as u32;
                 check_variables(
                     &variables,
                     current_timestamp,
@@ -2071,8 +1948,10 @@ mod adaptive_fee_variables_tests {
     }
 
     mod update_major_swap_timestamp {
-        use super::*;
-        use crate::state::{MAX_TICK_INDEX, MIN_TICK_INDEX};
+        use {
+            super::*,
+            crate::state::{MAX_TICK_INDEX, MIN_TICK_INDEX},
+        };
 
         fn test(major_swap_threshold_ticks: u16) {
             let current_timestamp = 1738824616;
@@ -2113,7 +1992,9 @@ mod adaptive_fee_variables_tests {
                     major_swap_threshold_ticks,
                 )
                 .unwrap();
-                // println!("tick_index: {}/{}, large_sqrt_price: {}, epsilon: {}, -/+: {}/{}", smaller_tick_index, larger_tick_index, larger_sqrt_price, epsilon, b_to_a_is_major_swap_sub_epsilon, b_to_a_is_major_swap_add_epsilon);
+                // println!("tick_index: {}/{}, large_sqrt_price: {}, epsilon: {}, -/+: {}/{}",
+                // smaller_tick_index, larger_tick_index, larger_sqrt_price, epsilon,
+                // b_to_a_is_major_swap_sub_epsilon, b_to_a_is_major_swap_add_epsilon);
                 assert!(!b_to_a_is_major_swap_sub_epsilon);
                 assert!(b_to_a_is_major_swap_add_epsilon);
 

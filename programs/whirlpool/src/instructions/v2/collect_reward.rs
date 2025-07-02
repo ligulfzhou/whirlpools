@@ -1,12 +1,17 @@
-use anchor_lang::prelude::*;
-use anchor_spl::memo::Memo;
-use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
-
-use crate::util::{parse_remaining_accounts, AccountsType, RemainingAccountsInfo};
-use crate::{
-    constants::transfer_memo,
-    state::*,
-    util::{v2::transfer_from_vault_to_owner_v2, verify_position_authority_interface},
+use {
+    crate::{
+        constants::transfer_memo,
+        state::*,
+        util::{
+            parse_remaining_accounts, v2::transfer_from_vault_to_owner_v2, verify_position_authority_interface,
+            AccountsType, RemainingAccountsInfo,
+        },
+    },
+    anchor_lang::prelude::*,
+    anchor_spl::{
+        memo::Memo,
+        token_interface::{Mint, TokenAccount, TokenInterface},
+    },
 };
 
 #[derive(Accounts)]
@@ -44,26 +49,24 @@ pub struct CollectRewardV2<'info> {
 
 /// Collects all harvestable tokens for a specified reward.
 ///
-/// If the Whirlpool reward vault does not have enough tokens, the maximum number of available
-/// tokens will be debited to the user. The unharvested amount remains tracked, and it can be
-/// harvested in the future.
+/// If the Whirlpool reward vault does not have enough tokens, the maximum
+/// number of available tokens will be debited to the user. The unharvested
+/// amount remains tracked, and it can be harvested in the future.
 ///
 /// # Parameters
 /// - `reward_index` - The reward to harvest. Acceptable values are 0, 1, and 2.
 ///
 /// # Returns
-/// - `Ok`: Reward tokens at the specified reward index have been successfully harvested
-/// - `Err`: `RewardNotInitialized` if the specified reward has not been initialized
-///          `InvalidRewardIndex` if the reward index is not 0, 1, or 2
+/// - `Ok`: Reward tokens at the specified reward index have been successfully
+///   harvested
+/// - `Err`: `RewardNotInitialized` if the specified reward has not been
+///   initialized `InvalidRewardIndex` if the reward index is not 0, 1, or 2
 pub fn handler<'info>(
     ctx: Context<'_, '_, '_, 'info, CollectRewardV2<'info>>,
     reward_index: u8,
     remaining_accounts_info: Option<RemainingAccountsInfo>,
 ) -> Result<()> {
-    verify_position_authority_interface(
-        &ctx.accounts.position_token_account,
-        &ctx.accounts.position_authority,
-    )?;
+    verify_position_authority_interface(&ctx.accounts.position_token_account, &ctx.accounts.position_authority)?;
 
     // Process remaining accounts
     let remaining_accounts = parse_remaining_accounts(
@@ -75,10 +78,8 @@ pub fn handler<'info>(
     let index = reward_index as usize;
 
     let position = &mut ctx.accounts.position;
-    let (transfer_amount, updated_amount_owed) = calculate_collect_reward(
-        position.reward_infos[index],
-        ctx.accounts.reward_vault.amount,
-    );
+    let (transfer_amount, updated_amount_owed) =
+        calculate_collect_reward(position.reward_infos[index], ctx.accounts.reward_vault.amount);
 
     position.update_reward_owed(index, updated_amount_owed);
 
@@ -109,13 +110,11 @@ fn calculate_collect_reward(position_reward: PositionRewardInfo, vault_amount: u
 
 #[cfg(test)]
 mod unit_tests {
-    use super::calculate_collect_reward;
-    use crate::state::PositionRewardInfo;
+    use {super::calculate_collect_reward, crate::state::PositionRewardInfo};
 
     #[test]
     fn test_calculate_collect_reward_vault_insufficient_tokens() {
-        let (transfer_amount, updated_amount_owed) =
-            calculate_collect_reward(position_reward(10), 1);
+        let (transfer_amount, updated_amount_owed) = calculate_collect_reward(position_reward(10), 1);
 
         assert_eq!(transfer_amount, 1);
         assert_eq!(updated_amount_owed, 9);
@@ -123,8 +122,7 @@ mod unit_tests {
 
     #[test]
     fn test_calculate_collect_reward_vault_sufficient_tokens() {
-        let (transfer_amount, updated_amount_owed) =
-            calculate_collect_reward(position_reward(10), 10);
+        let (transfer_amount, updated_amount_owed) = calculate_collect_reward(position_reward(10), 10);
 
         assert_eq!(transfer_amount, 10);
         assert_eq!(updated_amount_owed, 0);

@@ -1,9 +1,8 @@
-use crate::errors::ErrorCode;
-use crate::math::MAX_FEE_RATE;
-use crate::state::WhirlpoolsConfig;
-use anchor_lang::prelude::*;
-
-use super::AdaptiveFeeConstants;
+use {
+    super::AdaptiveFeeConstants,
+    crate::{errors::ErrorCode, math::MAX_FEE_RATE, state::WhirlpoolsConfig},
+    anchor_lang::prelude::*,
+};
 
 #[account]
 pub struct AdaptiveFeeTier {
@@ -151,9 +150,7 @@ impl AdaptiveFeeTier {
 
 #[cfg(test)]
 mod data_layout_tests {
-    use anchor_lang::Discriminator;
-
-    use super::*;
+    use {super::*, anchor_lang::Discriminator};
 
     #[test]
     fn test_adaptive_fee_tier_data_layout() {
@@ -178,8 +175,7 @@ mod data_layout_tests {
 
         let mut adaptive_fee_tier_data = [0u8; AdaptiveFeeTier::LEN];
         let mut offset = 0;
-        adaptive_fee_tier_data[offset..offset + 8]
-            .copy_from_slice(&AdaptiveFeeTier::discriminator());
+        adaptive_fee_tier_data[offset..offset + 8].copy_from_slice(&AdaptiveFeeTier::discriminator());
         offset += 8;
         adaptive_fee_tier_data[offset..offset + 32].copy_from_slice(&whirlpools_config.to_bytes());
         offset += 32;
@@ -187,14 +183,11 @@ mod data_layout_tests {
         offset += 2;
         adaptive_fee_tier_data[offset..offset + 2].copy_from_slice(&tick_spacing.to_le_bytes());
         offset += 2;
-        adaptive_fee_tier_data[offset..offset + 32]
-            .copy_from_slice(&initialize_pool_authority.to_bytes());
+        adaptive_fee_tier_data[offset..offset + 32].copy_from_slice(&initialize_pool_authority.to_bytes());
         offset += 32;
-        adaptive_fee_tier_data[offset..offset + 32]
-            .copy_from_slice(&delegated_fee_authority.to_bytes());
+        adaptive_fee_tier_data[offset..offset + 32].copy_from_slice(&delegated_fee_authority.to_bytes());
         offset += 32;
-        adaptive_fee_tier_data[offset..offset + 2]
-            .copy_from_slice(&default_base_fee_rate.to_le_bytes());
+        adaptive_fee_tier_data[offset..offset + 2].copy_from_slice(&default_base_fee_rate.to_le_bytes());
         offset += 2;
         adaptive_fee_tier_data[offset..offset + 2].copy_from_slice(&filter_period.to_le_bytes());
         offset += 2;
@@ -202,16 +195,13 @@ mod data_layout_tests {
         offset += 2;
         adaptive_fee_tier_data[offset..offset + 2].copy_from_slice(&reduction_factor.to_le_bytes());
         offset += 2;
-        adaptive_fee_tier_data[offset..offset + 4]
-            .copy_from_slice(&adaptive_fee_control_factor.to_le_bytes());
+        adaptive_fee_tier_data[offset..offset + 4].copy_from_slice(&adaptive_fee_control_factor.to_le_bytes());
         offset += 4;
-        adaptive_fee_tier_data[offset..offset + 4]
-            .copy_from_slice(&max_volatility_accumulator.to_le_bytes());
+        adaptive_fee_tier_data[offset..offset + 4].copy_from_slice(&max_volatility_accumulator.to_le_bytes());
         offset += 4;
         adaptive_fee_tier_data[offset..offset + 2].copy_from_slice(&tick_group_size.to_le_bytes());
         offset += 2;
-        adaptive_fee_tier_data[offset..offset + 2]
-            .copy_from_slice(&major_swap_threshold_ticks.to_le_bytes());
+        adaptive_fee_tier_data[offset..offset + 2].copy_from_slice(&major_swap_threshold_ticks.to_le_bytes());
         offset += 2;
         adaptive_fee_tier_data[offset..offset + adaptive_fee_tier_reserved.len()]
             .copy_from_slice(&adaptive_fee_tier_reserved);
@@ -219,32 +209,19 @@ mod data_layout_tests {
         assert_eq!(offset, AdaptiveFeeTier::LEN);
 
         // deserialize
-        let deserialized =
-            AdaptiveFeeTier::try_deserialize(&mut adaptive_fee_tier_data.as_ref()).unwrap();
+        let deserialized = AdaptiveFeeTier::try_deserialize(&mut adaptive_fee_tier_data.as_ref()).unwrap();
 
         assert_eq!(whirlpools_config, deserialized.whirlpools_config);
         assert_eq!(fee_tier_index, deserialized.fee_tier_index);
         assert_eq!(tick_spacing, deserialized.tick_spacing);
-        assert_eq!(
-            initialize_pool_authority,
-            deserialized.initialize_pool_authority
-        );
-        assert_eq!(
-            delegated_fee_authority,
-            deserialized.delegated_fee_authority
-        );
+        assert_eq!(initialize_pool_authority, deserialized.initialize_pool_authority);
+        assert_eq!(delegated_fee_authority, deserialized.delegated_fee_authority);
         assert_eq!(default_base_fee_rate, deserialized.default_base_fee_rate);
         assert_eq!(filter_period, deserialized.filter_period);
         assert_eq!(decay_period, deserialized.decay_period);
         assert_eq!(reduction_factor, deserialized.reduction_factor);
-        assert_eq!(
-            adaptive_fee_control_factor,
-            deserialized.adaptive_fee_control_factor
-        );
-        assert_eq!(
-            max_volatility_accumulator,
-            deserialized.max_volatility_accumulator
-        );
+        assert_eq!(adaptive_fee_control_factor, deserialized.adaptive_fee_control_factor);
+        assert_eq!(max_volatility_accumulator, deserialized.max_volatility_accumulator);
         assert_eq!(tick_group_size, deserialized.tick_group_size);
 
         // serialize

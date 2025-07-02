@@ -1,7 +1,8 @@
-use crate::state::{AdaptiveFeeConstants, Oracle, TickArray, Whirlpool};
-use anchor_lang::prelude::*;
-use anchor_lang::Discriminator;
-use std::cell::RefCell;
+use {
+    crate::state::{AdaptiveFeeConstants, Oracle, TickArray, Whirlpool},
+    anchor_lang::{prelude::*, Discriminator},
+    std::cell::RefCell,
+};
 
 pub struct AccountInfoMock {
     pub key: Pubkey,
@@ -24,12 +25,7 @@ impl AccountInfoMock {
         }
     }
 
-    pub fn new_whirlpool(
-        key: Pubkey,
-        tick_spacing: u16,
-        tick_current_index: i32,
-        owner: Option<Pubkey>,
-    ) -> Self {
+    pub fn new_whirlpool(key: Pubkey, tick_spacing: u16, tick_current_index: i32, owner: Option<Pubkey>) -> Self {
         let whirlpool = Whirlpool {
             tick_spacing,
             tick_current_index,
@@ -41,12 +37,7 @@ impl AccountInfoMock {
         Self::new(key, data, owner.unwrap_or(Whirlpool::owner()))
     }
 
-    pub fn new_tick_array(
-        key: Pubkey,
-        whirlpool: Pubkey,
-        start_tick_index: i32,
-        owner: Option<Pubkey>,
-    ) -> Self {
+    pub fn new_tick_array(key: Pubkey, whirlpool: Pubkey, start_tick_index: i32, owner: Option<Pubkey>) -> Self {
         let mut data = vec![0u8; TickArray::LEN];
         data[0..8].copy_from_slice(&TickArray::discriminator());
         data[8..12].copy_from_slice(&start_tick_index.to_le_bytes());
@@ -63,35 +54,22 @@ impl AccountInfoMock {
     ) -> Self {
         let mut af_const_data = [0u8; AdaptiveFeeConstants::LEN];
         let mut offset = 0;
-        af_const_data[offset..offset + 2]
-            .copy_from_slice(&adaptive_fee_constants.filter_period.to_le_bytes());
+        af_const_data[offset..offset + 2].copy_from_slice(&adaptive_fee_constants.filter_period.to_le_bytes());
         offset += 2;
-        af_const_data[offset..offset + 2]
-            .copy_from_slice(&adaptive_fee_constants.decay_period.to_le_bytes());
+        af_const_data[offset..offset + 2].copy_from_slice(&adaptive_fee_constants.decay_period.to_le_bytes());
         offset += 2;
-        af_const_data[offset..offset + 2]
-            .copy_from_slice(&adaptive_fee_constants.reduction_factor.to_le_bytes());
+        af_const_data[offset..offset + 2].copy_from_slice(&adaptive_fee_constants.reduction_factor.to_le_bytes());
         offset += 2;
-        af_const_data[offset..offset + 4].copy_from_slice(
-            &adaptive_fee_constants
-                .adaptive_fee_control_factor
-                .to_le_bytes(),
-        );
+        af_const_data[offset..offset + 4]
+            .copy_from_slice(&adaptive_fee_constants.adaptive_fee_control_factor.to_le_bytes());
         offset += 4;
-        af_const_data[offset..offset + 4].copy_from_slice(
-            &adaptive_fee_constants
-                .max_volatility_accumulator
-                .to_le_bytes(),
-        );
+        af_const_data[offset..offset + 4]
+            .copy_from_slice(&adaptive_fee_constants.max_volatility_accumulator.to_le_bytes());
         offset += 4;
-        af_const_data[offset..offset + 2]
-            .copy_from_slice(&adaptive_fee_constants.tick_group_size.to_le_bytes());
+        af_const_data[offset..offset + 2].copy_from_slice(&adaptive_fee_constants.tick_group_size.to_le_bytes());
         offset += 2;
-        af_const_data[offset..offset + 2].copy_from_slice(
-            &adaptive_fee_constants
-                .major_swap_threshold_ticks
-                .to_le_bytes(),
-        );
+        af_const_data[offset..offset + 2]
+            .copy_from_slice(&adaptive_fee_constants.major_swap_threshold_ticks.to_le_bytes());
         offset += 2;
         // reserved
         offset += 16;

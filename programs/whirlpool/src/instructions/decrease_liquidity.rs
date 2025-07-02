@@ -1,17 +1,18 @@
-use anchor_lang::prelude::*;
-
-use crate::errors::ErrorCode;
-use crate::events::*;
-use crate::manager::liquidity_manager::{
-    calculate_liquidity_token_deltas, calculate_modify_liquidity, sync_modify_liquidity_values,
+use {
+    super::increase_liquidity::ModifyLiquidity,
+    crate::{
+        errors::ErrorCode,
+        events::*,
+        manager::liquidity_manager::{
+            calculate_liquidity_token_deltas, calculate_modify_liquidity, sync_modify_liquidity_values,
+        },
+        math::convert_to_liquidity_delta,
+        util::{
+            is_locked_position, to_timestamp_u64, transfer_from_vault_to_owner, verify_position_authority_interface,
+        },
+    },
+    anchor_lang::prelude::*,
 };
-use crate::math::convert_to_liquidity_delta;
-use crate::util::{
-    is_locked_position, to_timestamp_u64, transfer_from_vault_to_owner,
-    verify_position_authority_interface,
-};
-
-use super::increase_liquidity::ModifyLiquidity;
 
 /*
   Removes liquidity from an existing Whirlpool Position.
@@ -22,10 +23,7 @@ pub fn handler(
     token_min_a: u64,
     token_min_b: u64,
 ) -> Result<()> {
-    verify_position_authority_interface(
-        &ctx.accounts.position_token_account,
-        &ctx.accounts.position_authority,
-    )?;
+    verify_position_authority_interface(&ctx.accounts.position_token_account, &ctx.accounts.position_authority)?;
 
     if is_locked_position(&ctx.accounts.position_token_account) {
         return Err(ErrorCode::OperationNotAllowedOnLockedPosition.into());

@@ -1,16 +1,19 @@
-use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Token, TokenAccount};
-use anchor_spl::token_interface::TokenAccount as TokenAccountInterface;
-
-use crate::errors::ErrorCode;
-use crate::events::*;
-use crate::manager::liquidity_manager::{
-    calculate_liquidity_token_deltas, calculate_modify_liquidity, sync_modify_liquidity_values,
-};
-use crate::math::convert_to_liquidity_delta;
-use crate::state::*;
-use crate::util::{
-    to_timestamp_u64, transfer_from_owner_to_vault, verify_position_authority_interface,
+use {
+    crate::{
+        errors::ErrorCode,
+        events::*,
+        manager::liquidity_manager::{
+            calculate_liquidity_token_deltas, calculate_modify_liquidity, sync_modify_liquidity_values,
+        },
+        math::convert_to_liquidity_delta,
+        state::*,
+        util::{to_timestamp_u64, transfer_from_owner_to_vault, verify_position_authority_interface},
+    },
+    anchor_lang::prelude::*,
+    anchor_spl::{
+        token::{self, Token, TokenAccount},
+        token_interface::TokenAccount as TokenAccountInterface,
+    },
 };
 
 #[derive(Accounts)]
@@ -53,10 +56,7 @@ pub fn handler(
     token_max_a: u64,
     token_max_b: u64,
 ) -> Result<()> {
-    verify_position_authority_interface(
-        &ctx.accounts.position_token_account,
-        &ctx.accounts.position_authority,
-    )?;
+    verify_position_authority_interface(&ctx.accounts.position_token_account, &ctx.accounts.position_authority)?;
 
     let clock = Clock::get()?;
 

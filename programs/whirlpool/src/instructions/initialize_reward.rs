@@ -1,7 +1,8 @@
-use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Mint, Token, TokenAccount};
-
-use crate::state::Whirlpool;
+use {
+    crate::state::Whirlpool,
+    anchor_lang::prelude::*,
+    anchor_spl::token::{self, Mint, Token, TokenAccount},
+};
 
 #[derive(Accounts)]
 #[instruction(reward_index: u8)]

@@ -1,10 +1,11 @@
-use std::{
-    cmp::Ordering,
-    fmt::{Display, Formatter, Result as FmtResult},
-    str::from_utf8_unchecked,
+use {
+    crate::errors::ErrorCode,
+    std::{
+        cmp::Ordering,
+        fmt::{Display, Formatter, Result as FmtResult},
+        str::from_utf8_unchecked,
+    },
 };
-
-use crate::errors::ErrorCode;
 
 const NUM_WORDS: usize = 4;
 
@@ -92,8 +93,8 @@ impl U256Muldiv {
         }
 
         for i in (1..NUM_WORDS).rev() {
-            result.items[i] = (result.items[i] << shift_amount)
-                | (result.items[i - 1] >> (U64_RESOLUTION - shift_amount));
+            result.items[i] =
+                (result.items[i] << shift_amount) | (result.items[i - 1] >> (U64_RESOLUTION - shift_amount));
         }
 
         result.items[0] <<= shift_amount;
@@ -131,8 +132,8 @@ impl U256Muldiv {
         }
 
         for i in 0..NUM_WORDS - 1 {
-            result.items[i] = (result.items[i] >> shift_amount)
-                | (result.items[i + 1] << (U64_RESOLUTION - shift_amount));
+            result.items[i] =
+                (result.items[i] >> shift_amount) | (result.items[i + 1] << (U64_RESOLUTION - shift_amount));
         }
 
         result.items[3] >>= shift_amount;
@@ -328,7 +329,8 @@ impl U256Muldiv {
             }
         }
 
-        // Case 2. Dividend is smaller than u128, divisor <= dividend, perform math in u128 space
+        // Case 2. Dividend is smaller than u128, divisor <= dividend, perform math in
+        // u128 space
         if num_dividend_words < 3 {
             let dividend = dividend.try_into_u128().unwrap();
             let divisor = divisor.try_into_u128().unwrap();
@@ -452,7 +454,7 @@ pub fn hi_lo(hi: u64, lo: u64) -> u128 {
 pub fn mul_u256(v: u128, n: u128) -> U256Muldiv {
     // do 128 bits multiply
     //                   nh   nl
-    //                *  vh   vl
+    //                * vh   vl
     //                ----------
     // a0 =              vl * nl
     // a1 =         vl * nh
@@ -556,19 +558,13 @@ fn div_loop(
             k = t >> U64_RESOLUTION;
         }
 
-        let new_carry = dividend
-            .get_word_u128(index + num_divisor_words)
-            .wrapping_add(k)
-            .lo();
+        let new_carry = dividend.get_word_u128(index + num_divisor_words).wrapping_add(k).lo();
         if use_carry {
             *dividend_carry_space = new_carry
         } else {
             dividend.update_word(
                 index + num_divisor_words,
-                dividend
-                    .get_word_u128(index + num_divisor_words)
-                    .wrapping_add(k)
-                    .lo(),
+                dividend.get_word_u128(index + num_divisor_words).wrapping_add(k).lo(),
             );
         }
     }
@@ -580,9 +576,10 @@ fn div_loop(
 
 #[cfg(test)]
 mod fuzz_tests {
-    use proptest::prelude::*;
-
-    use crate::math::{mul_u256, U256Muldiv, U256};
+    use {
+        crate::math::{mul_u256, U256Muldiv, U256},
+        proptest::prelude::*,
+    };
 
     fn assert_equality(n0: U256Muldiv, n1: U256) {
         assert_eq!(n0.get_word(0), n1.0[0], "failed: 0");
@@ -948,9 +945,7 @@ mod test_sub {
 
 #[cfg(test)]
 mod test_div {
-    use crate::math::U256;
-
-    use super::U256Muldiv;
+    use {super::U256Muldiv, crate::math::U256};
 
     #[test]
     fn test_div_0() {
@@ -958,8 +953,8 @@ mod test_div {
         let divisor = U256Muldiv::new(0, 100 << 64);
         let result = dividend.div(divisor, true);
 
-        let result2 = ((U256::from(50u128 << 64) << 128) + U256::from(100u128 << 64))
-            .div_mod(U256::from(100u128 << 64));
+        let result2 =
+            ((U256::from(50u128 << 64) << 128) + U256::from(100u128 << 64)).div_mod(U256::from(100u128 << 64));
 
         assert!(format!("{}", result.0) == format!("{}", result2.0));
         assert!(format!("{}", result.1) == format!("{}", result2.1));
@@ -971,8 +966,7 @@ mod test_div {
         let divisor = U256Muldiv::new(0, 50 << 64);
         let result = dividend.div(divisor, true);
 
-        let result2 =
-            ((U256::from(100u128) << 128) + U256::from(100u128)).div_mod(U256::from(50u128 << 64));
+        let result2 = ((U256::from(100u128) << 128) + U256::from(100u128)).div_mod(U256::from(50u128 << 64));
 
         assert!(format!("{}", result.0) == format!("{}", result2.0));
         assert!(format!("{}", result.1) == format!("{}", result2.1));
@@ -984,8 +978,7 @@ mod test_div {
         let divisor = U256Muldiv::new(0, 100 << 64);
         let result = dividend.div(divisor, true);
 
-        let result2 = ((U256::from(50u128) << 128) + U256::from(100u128 << 64))
-            .div_mod(U256::from(100u128 << 64));
+        let result2 = ((U256::from(50u128) << 128) + U256::from(100u128 << 64)).div_mod(U256::from(100u128 << 64));
 
         assert!(format!("{}", result.0) == format!("{}", result2.0));
         assert!(format!("{}", result.1) == format!("{}", result2.1));
@@ -997,8 +990,7 @@ mod test_div {
         let divisor = U256Muldiv::new(0, 66);
         let result = dividend.div(divisor, true);
 
-        let result2 =
-            ((U256::from(50) << 128) + U256::from(100u128 << 64)).div_mod(U256::from(66u128));
+        let result2 = ((U256::from(50) << 128) + U256::from(100u128 << 64)).div_mod(U256::from(66u128));
 
         assert!(format!("{}", result.0) == format!("{}", result2.0));
         assert!(format!("{}", result.1) == format!("{}", result2.1));
@@ -1010,8 +1002,8 @@ mod test_div {
         let divisor = U256Muldiv::new(1 << 63, u64::MAX as u128);
         let result = dividend.div(divisor, true);
 
-        let result2 = (U256::from(100u128 << 64) << 128)
-            .div_mod((U256::from(1u128 << 63) << 128) + U256::from(u64::MAX));
+        let result2 =
+            (U256::from(100u128 << 64) << 128).div_mod((U256::from(1u128 << 63) << 128) + U256::from(u64::MAX));
 
         assert!(format!("{}", result.0) == format!("{}", result2.0));
         assert!(format!("{}", result.1) == format!("{}", result2.1));
@@ -1035,8 +1027,7 @@ mod test_div {
         let divisor = U256Muldiv::new(1 << 63, 1);
         let result = dividend.div(divisor, true);
 
-        let result2 =
-            (U256::from(1u128 << 63) << 128).div_mod((U256::from(1u128 << 63) << 128) + 1);
+        let result2 = (U256::from(1u128 << 63) << 128).div_mod((U256::from(1u128 << 63) << 128) + 1);
 
         assert!(format!("{}", result.0) == format!("{}", result2.0));
         assert!(format!("{}", result.1) == format!("{}", result2.1));

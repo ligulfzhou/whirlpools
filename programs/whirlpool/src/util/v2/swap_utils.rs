@@ -1,10 +1,12 @@
-use anchor_lang::prelude::*;
-use anchor_spl::memo::Memo;
-use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
-
-use crate::{manager::swap_manager::PostSwapUpdate, state::Whirlpool};
-
-use super::{transfer_from_owner_to_vault_v2, transfer_from_vault_to_owner_v2};
+use {
+    super::{transfer_from_owner_to_vault_v2, transfer_from_vault_to_owner_v2},
+    crate::{manager::swap_manager::PostSwapUpdate, state::Whirlpool},
+    anchor_lang::prelude::*,
+    anchor_spl::{
+        memo::Memo,
+        token_interface::{Mint, TokenAccount, TokenInterface},
+    },
+};
 
 #[allow(clippy::too_many_arguments)]
 pub fn update_and_swap_whirlpool_v2<'info>(

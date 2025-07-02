@@ -1,6 +1,7 @@
-use anchor_lang::prelude::*;
-
-use crate::state::{Whirlpool, WhirlpoolsConfig};
+use {
+    crate::state::{Whirlpool, WhirlpoolsConfig},
+    anchor_lang::prelude::*,
+};
 
 #[derive(Accounts)]
 pub struct SetProtocolFeeRate<'info> {
@@ -14,7 +15,5 @@ pub struct SetProtocolFeeRate<'info> {
 }
 
 pub fn handler(ctx: Context<SetProtocolFeeRate>, protocol_fee_rate: u16) -> Result<()> {
-    ctx.accounts
-        .whirlpool
-        .update_protocol_fee_rate(protocol_fee_rate)
+    ctx.accounts.whirlpool.update_protocol_fee_rate(protocol_fee_rate)
 }

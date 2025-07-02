@@ -1,8 +1,15 @@
-use crate::util::{parse_remaining_accounts, AccountsType, RemainingAccountsInfo};
-use crate::{constants::transfer_memo, state::*, util::v2::transfer_from_vault_to_owner_v2};
-use anchor_lang::prelude::*;
-use anchor_spl::memo::Memo;
-use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
+use {
+    crate::{
+        constants::transfer_memo,
+        state::*,
+        util::{parse_remaining_accounts, v2::transfer_from_vault_to_owner_v2, AccountsType, RemainingAccountsInfo},
+    },
+    anchor_lang::prelude::*,
+    anchor_spl::{
+        memo::Memo,
+        token_interface::{Mint, TokenAccount, TokenInterface},
+    },
+};
 
 #[derive(Accounts)]
 pub struct CollectProtocolFeesV2<'info> {

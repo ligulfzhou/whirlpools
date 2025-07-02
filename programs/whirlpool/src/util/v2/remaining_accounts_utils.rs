@@ -1,5 +1,4 @@
-use crate::errors::ErrorCode;
-use anchor_lang::prelude::*;
+use {crate::errors::ErrorCode, anchor_lang::prelude::*};
 
 pub const MAX_SUPPLEMENTAL_TICK_ARRAYS_LEN: usize = 3;
 
@@ -97,10 +96,7 @@ pub fn parse_remaining_accounts<'info>(
                 parsed_remaining_accounts.transfer_hook_input = Some(accounts);
             }
             AccountsType::TransferHookIntermediate => {
-                if parsed_remaining_accounts
-                    .transfer_hook_intermediate
-                    .is_some()
-                {
+                if parsed_remaining_accounts.transfer_hook_intermediate.is_some() {
                     return Err(ErrorCode::RemainingAccountsDuplicatedAccountsType.into());
                 }
                 parsed_remaining_accounts.transfer_hook_intermediate = Some(accounts);
@@ -126,10 +122,7 @@ pub fn parse_remaining_accounts<'info>(
                     return Err(ErrorCode::TooManySupplementalTickArrays.into());
                 }
 
-                if parsed_remaining_accounts
-                    .supplemental_tick_arrays_one
-                    .is_some()
-                {
+                if parsed_remaining_accounts.supplemental_tick_arrays_one.is_some() {
                     return Err(ErrorCode::RemainingAccountsDuplicatedAccountsType.into());
                 }
                 parsed_remaining_accounts.supplemental_tick_arrays_one = Some(accounts);
@@ -139,10 +132,7 @@ pub fn parse_remaining_accounts<'info>(
                     return Err(ErrorCode::TooManySupplementalTickArrays.into());
                 }
 
-                if parsed_remaining_accounts
-                    .supplemental_tick_arrays_two
-                    .is_some()
-                {
+                if parsed_remaining_accounts.supplemental_tick_arrays_two.is_some() {
                     return Err(ErrorCode::RemainingAccountsDuplicatedAccountsType.into());
                 }
                 parsed_remaining_accounts.supplemental_tick_arrays_two = Some(accounts);

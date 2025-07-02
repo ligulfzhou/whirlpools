@@ -1,5 +1,4 @@
-use crate::math::u256_math::*;
-use std::convert::TryInto;
+use {crate::math::u256_math::*, std::convert::TryInto};
 
 // Max/Min sqrt_price derived from max/min tick-index
 pub const MAX_SQRT_PRICE_X64: u128 = 79226673515401279992447579055;
@@ -12,8 +11,8 @@ const LOG_B_P_ERR_MARGIN_UPPER_X64: i128 = 15793534762490258745i128; // 2^-preci
 
 pub const FULL_RANGE_ONLY_TICK_SPACING_THRESHOLD: u16 = 32768; // 2^15
 
-/// Derive the sqrt-price from a tick index. The precision of this method is only guarranted
-/// if tick is within the bounds of {max, min} tick-index.
+/// Derive the sqrt-price from a tick index. The precision of this method is
+/// only guarranted if tick is within the bounds of {max, min} tick-index.
 ///
 /// # Parameters
 /// - `tick` - A i32 integer representing the tick integer
@@ -28,8 +27,8 @@ pub fn sqrt_price_from_tick_index(tick: i32) -> u128 {
     }
 }
 
-/// Derive the tick-index from a sqrt-price. The precision of this method is only guarranted
-/// if sqrt-price is within the bounds of {max, min} sqrt-price.
+/// Derive the tick-index from a sqrt-price. The precision of this method is
+/// only guarranted if sqrt-price is within the bounds of {max, min} sqrt-price.
 ///
 /// # Parameters
 /// - `sqrt_price_x64` - A u128 Q64.64 integer representing the sqrt-price
@@ -71,13 +70,10 @@ pub fn tick_index_from_sqrt_price(sqrt_price_x64: &u128) -> i32 {
     // Transform from base 2 to base b
     let logbp_x64 = log2p_x32 * LOG_B_2_X32;
 
-    // Derive tick_low & high estimate. Adjust with the possibility of under-estimating by 2^precision_bits/log_2(b) + 0.01 error margin.
-    let tick_low: i32 = ((logbp_x64 - LOG_B_P_ERR_MARGIN_LOWER_X64) >> 64)
-        .try_into()
-        .unwrap();
-    let tick_high: i32 = ((logbp_x64 + LOG_B_P_ERR_MARGIN_UPPER_X64) >> 64)
-        .try_into()
-        .unwrap();
+    // Derive tick_low & high estimate. Adjust with the possibility of
+    // under-estimating by 2^precision_bits/log_2(b) + 0.01 error margin.
+    let tick_low: i32 = ((logbp_x64 - LOG_B_P_ERR_MARGIN_LOWER_X64) >> 64).try_into().unwrap();
+    let tick_high: i32 = ((logbp_x64 + LOG_B_P_ERR_MARGIN_UPPER_X64) >> 64).try_into().unwrap();
 
     if tick_low == tick_high {
         tick_low
@@ -235,12 +231,14 @@ fn get_sqrt_price_negative_tick(tick: i32) -> u128 {
 #[cfg(test)]
 mod fuzz_tests {
 
-    use super::*;
-    use crate::{
-        math::U256,
-        state::{MAX_TICK_INDEX, MIN_TICK_INDEX},
+    use {
+        super::*,
+        crate::{
+            math::U256,
+            state::{MAX_TICK_INDEX, MIN_TICK_INDEX},
+        },
+        proptest::prelude::*,
     };
-    use proptest::prelude::*;
 
     fn within_price_approximation(lower: u128, upper: u128) -> bool {
         let precision = 96;
@@ -337,8 +335,10 @@ mod fuzz_tests {
 
 #[cfg(test)]
 mod test_tick_index_from_sqrt_price {
-    use super::*;
-    use crate::state::{MAX_TICK_INDEX, MIN_TICK_INDEX};
+    use {
+        super::*,
+        crate::state::{MAX_TICK_INDEX, MIN_TICK_INDEX},
+    };
 
     #[test]
     fn test_sqrt_price_from_tick_index_at_max() {
@@ -359,7 +359,8 @@ mod test_tick_index_from_sqrt_price {
         let sqrt_price_x64_max = MAX_SQRT_PRICE_X64 + 1;
         let tick_from_max = tick_index_from_sqrt_price(&sqrt_price_x64_max);
 
-        // We don't care about accuracy over the limit. We just care about it's equality properties.
+        // We don't care about accuracy over the limit. We just care about it's equality
+        // properties.
         assert!(tick_from_max_add_one >= tick_from_max);
     }
 
@@ -384,7 +385,8 @@ mod test_tick_index_from_sqrt_price {
         let sqrt_price_x64_min = MIN_SQRT_PRICE_X64 + 1;
         let tick_from_min = tick_index_from_sqrt_price(&sqrt_price_x64_min);
 
-        // We don't care about accuracy over the limit. We just care about it's equality properties.
+        // We don't care about accuracy over the limit. We just care about it's equality
+        // properties.
         assert!(tick_from_min_sub_one < tick_from_min);
     }
 
@@ -412,12 +414,15 @@ mod test_tick_index_from_sqrt_price {
 
 #[cfg(test)]
 mod sqrt_price_from_tick_index_tests {
-    use super::*;
-    use crate::state::{MAX_TICK_INDEX, MIN_TICK_INDEX};
+    use {
+        super::*,
+        crate::state::{MAX_TICK_INDEX, MIN_TICK_INDEX},
+    };
 
     #[test]
     #[should_panic(expected = "NumberDownCastError")]
-    // There should never be a use-case where we call this method with an out of bound index
+    // There should never be a use-case where we call this method with an out of
+    // bound index
     fn test_tick_exceed_max() {
         let sqrt_price_from_max_tick_add_one = sqrt_price_from_tick_index(MAX_TICK_INDEX + 1);
         let sqrt_price_from_max_tick = sqrt_price_from_tick_index(MAX_TICK_INDEX);
@@ -448,126 +453,26 @@ mod sqrt_price_from_tick_index_tests {
     #[test]
     fn test_exact_bit_values() {
         let conditions = &[
-            (
-                0i32,
-                18446744073709551616u128,
-                18446744073709551616u128,
-                "0x0",
-            ),
-            (
-                1i32,
-                18447666387855959850u128,
-                18445821805675392311u128,
-                "0x1",
-            ),
-            (
-                2i32,
-                18448588748116922571u128,
-                18444899583751176498u128,
-                "0x2",
-            ),
-            (
-                4i32,
-                18450433606991734263u128,
-                18443055278223354162u128,
-                "0x4",
-            ),
-            (
-                8i32,
-                18454123878217468680u128,
-                18439367220385604838u128,
-                "0x8",
-            ),
-            (
-                16i32,
-                18461506635090006701u128,
-                18431993317065449817u128,
-                "0x10",
-            ),
-            (
-                32i32,
-                18476281010653910144u128,
-                18417254355718160513u128,
-                "0x20",
-            ),
-            (
-                64i32,
-                18505865242158250041u128,
-                18387811781193591352u128,
-                "0x40",
-            ),
-            (
-                128i32,
-                18565175891880433522u128,
-                18329067761203520168u128,
-                "0x80",
-            ),
-            (
-                256i32,
-                18684368066214940582u128,
-                18212142134806087854u128,
-                "0x100",
-            ),
-            (
-                512i32,
-                18925053041275764671u128,
-                17980523815641551639u128,
-                "0x200",
-            ),
-            (
-                1024i32,
-                19415764168677886926u128,
-                17526086738831147013u128,
-                "0x400",
-            ),
-            (
-                2048i32,
-                20435687552633177494u128,
-                16651378430235024244u128,
-                "0x800",
-            ),
-            (
-                4096i32,
-                22639080592224303007u128,
-                15030750278693429944u128,
-                "0x1000",
-            ),
-            (
-                8192i32,
-                27784196929998399742u128,
-                12247334978882834399u128,
-                "0x2000",
-            ),
-            (
-                16384i32,
-                41848122137994986128u128,
-                8131365268884726200u128,
-                "0x4000",
-            ),
-            (
-                32768i32,
-                94936283578220370716u128,
-                3584323654723342297u128,
-                "0x8000",
-            ),
-            (
-                65536i32,
-                488590176327622479860u128,
-                696457651847595233u128,
-                "0x10000",
-            ),
-            (
-                131072i32,
-                12941056668319229769860u128,
-                26294789957452057u128,
-                "0x20000",
-            ),
-            (
-                262144i32,
-                9078618265828848800676189u128,
-                37481735321082u128,
-                "0x40000",
-            ),
+            (0i32, 18446744073709551616u128, 18446744073709551616u128, "0x0"),
+            (1i32, 18447666387855959850u128, 18445821805675392311u128, "0x1"),
+            (2i32, 18448588748116922571u128, 18444899583751176498u128, "0x2"),
+            (4i32, 18450433606991734263u128, 18443055278223354162u128, "0x4"),
+            (8i32, 18454123878217468680u128, 18439367220385604838u128, "0x8"),
+            (16i32, 18461506635090006701u128, 18431993317065449817u128, "0x10"),
+            (32i32, 18476281010653910144u128, 18417254355718160513u128, "0x20"),
+            (64i32, 18505865242158250041u128, 18387811781193591352u128, "0x40"),
+            (128i32, 18565175891880433522u128, 18329067761203520168u128, "0x80"),
+            (256i32, 18684368066214940582u128, 18212142134806087854u128, "0x100"),
+            (512i32, 18925053041275764671u128, 17980523815641551639u128, "0x200"),
+            (1024i32, 19415764168677886926u128, 17526086738831147013u128, "0x400"),
+            (2048i32, 20435687552633177494u128, 16651378430235024244u128, "0x800"),
+            (4096i32, 22639080592224303007u128, 15030750278693429944u128, "0x1000"),
+            (8192i32, 27784196929998399742u128, 12247334978882834399u128, "0x2000"),
+            (16384i32, 41848122137994986128u128, 8131365268884726200u128, "0x4000"),
+            (32768i32, 94936283578220370716u128, 3584323654723342297u128, "0x8000"),
+            (65536i32, 488590176327622479860u128, 696457651847595233u128, "0x10000"),
+            (131072i32, 12941056668319229769860u128, 26294789957452057u128, "0x20000"),
+            (262144i32, 9078618265828848800676189u128, 37481735321082u128, "0x40000"),
         ];
 
         for (p_tick, expected, neg_expected, desc) in conditions {

@@ -1,14 +1,17 @@
-use crate::errors::ErrorCode;
-use crate::manager::swap_manager::*;
-use crate::math::*;
-use crate::state::{MAX_TICK_INDEX, MIN_TICK_INDEX, TICK_ARRAY_SIZE};
-use crate::util::test_utils::swap_test_fixture::*;
-use crate::util::{create_whirlpool_reward_infos, SwapTickSequence};
-use serde::Deserialize;
-use serde_json;
-use serde_with::{serde_as, DisplayFromStr};
-use solana_program::msg;
-use std::fs;
+use {
+    crate::{
+        errors::ErrorCode,
+        manager::swap_manager::*,
+        math::*,
+        state::{MAX_TICK_INDEX, MIN_TICK_INDEX, TICK_ARRAY_SIZE},
+        util::{create_whirlpool_reward_infos, test_utils::swap_test_fixture::*, SwapTickSequence},
+    },
+    serde::Deserialize,
+    serde_json,
+    serde_with::{serde_as, DisplayFromStr},
+    solana_program::msg,
+    std::fs,
+};
 
 #[serde_as]
 #[derive(Debug, Deserialize, Default)]
@@ -50,7 +53,8 @@ struct Expectation {
 }
 
 /// Current version of Anchor doesn't bubble up errors in a way
-/// where we can compare. v0.23.0 has an updated format that will allow us to do so.
+/// where we can compare. v0.23.0 has an updated format that will allow us to do
+/// so.
 const CATCHABLE_ERRORS: [(&str, ErrorCode); 10] = [
     (
         "MultiplicationShiftRightOverflow",
@@ -59,18 +63,12 @@ const CATCHABLE_ERRORS: [(&str, ErrorCode); 10] = [
     ("TokenMaxExceeded", ErrorCode::TokenMaxExceeded),
     ("DivideByZero", ErrorCode::DivideByZero),
     ("SqrtPriceOutOfBounds", ErrorCode::SqrtPriceOutOfBounds),
-    (
-        "InvalidTickArraySequence",
-        ErrorCode::InvalidTickArraySequence,
-    ),
+    ("InvalidTickArraySequence", ErrorCode::InvalidTickArraySequence),
     ("ZeroTradableAmount", ErrorCode::ZeroTradableAmount),
     ("NumberDownCastError", ErrorCode::NumberDownCastError),
     ("MultiplicationOverflow", ErrorCode::MultiplicationOverflow),
     // from swap_manager.rs
-    (
-        "AmountRemainingOverflow",
-        ErrorCode::AmountRemainingOverflow,
-    ),
+    ("AmountRemainingOverflow", ErrorCode::AmountRemainingOverflow),
     ("AmountCalcOverflow", ErrorCode::AmountCalcOverflow),
 ];
 
@@ -116,8 +114,7 @@ fn run_swap_integration_tests(test_cases_json_path: &str) {
         total_cases += 1;
 
         let derived_start_tick = derive_start_tick(test.curr_tick_index, test.tick_spacing);
-        let last_tick_in_seq =
-            derive_last_tick_in_seq(derived_start_tick, test.tick_spacing, test.a_to_b);
+        let last_tick_in_seq = derive_last_tick_in_seq(derived_start_tick, test.tick_spacing, test.a_to_b);
 
         let swap_test_info = SwapTestFixture::new(SwapTestFixtureInfo {
             tick_spacing: test.tick_spacing,
@@ -171,9 +168,7 @@ fn run_swap_integration_tests(test_cases_json_path: &str) {
                 msg!("");
 
                 fail_cases += 1;
-            } else if expected_error.is_some()
-                && !anchor_lang::error!(expected_error.unwrap()).eq(&e)
-            {
+            } else if expected_error.is_some() && !anchor_lang::error!(expected_error.unwrap()).eq(&e) {
                 fail_cases += 1;
 
                 msg!("Test case {} - {}", test_id, test.description);
@@ -203,16 +198,8 @@ fn run_swap_integration_tests(test_cases_json_path: &str) {
                         expectation.exception
                     );
                 } else {
-                    msg!(
-                        "amount_a - {}, expect - {}",
-                        results.amount_a,
-                        expectation.amount_a
-                    );
-                    msg!(
-                        "amount_b - {}, expect - {}",
-                        results.amount_b,
-                        expectation.amount_b
-                    );
+                    msg!("amount_a - {}, expect - {}", results.amount_a, expectation.amount_a);
+                    msg!("amount_b - {}, expect - {}", results.amount_b, expectation.amount_b);
                     msg!(
                         "next_liq - {}, expect - {}",
                         results.next_liquidity,
@@ -232,8 +219,7 @@ fn run_swap_integration_tests(test_cases_json_path: &str) {
                         "next_fee_growth_global - {}, expect - {}, delta - {}",
                         results.next_fee_growth_global,
                         expectation.next_fee_growth_global,
-                        results.next_fee_growth_global as i128
-                            - expectation.next_fee_growth_global as i128,
+                        results.next_fee_growth_global as i128 - expectation.next_fee_growth_global as i128,
                     );
                     msg!(
                         "next_protocol_fee - {}, expect - {}",
@@ -263,20 +249,16 @@ fn assert_expectation(post_swap: &PostSwapUpdate, expectation: &Expectation) -> 
     let next_liquidity_equal = post_swap.next_liquidity.eq(&expectation.next_liquidity);
     let next_tick_equal = post_swap.next_tick_index.eq(&expectation.next_tick_index);
     let next_sqrt_price_equal = post_swap.next_sqrt_price.eq(&expectation.next_sqrt_price);
-    let next_fees_equal = post_swap
-        .next_fee_growth_global
-        .eq(&expectation.next_fee_growth_global);
-    let next_protocol_fees_equal = post_swap
-        .next_protocol_fee
-        .eq(&expectation.next_protocol_fee);
+    let next_fees_equal = post_swap.next_fee_growth_global.eq(&expectation.next_fee_growth_global);
+    let next_protocol_fees_equal = post_swap.next_protocol_fee.eq(&expectation.next_protocol_fee);
 
-    amount_a_equal
-        && amount_b_equal
-        && next_liquidity_equal
-        && next_tick_equal
-        && next_sqrt_price_equal
-        && next_fees_equal
-        && next_protocol_fees_equal
+    amount_a_equal &&
+        amount_b_equal &&
+        next_liquidity_equal &&
+        next_tick_equal &&
+        next_sqrt_price_equal &&
+        next_fees_equal &&
+        next_protocol_fees_equal
 }
 
 fn derive_error(expected_err: &String) -> Option<ErrorCode> {
@@ -288,7 +270,8 @@ fn derive_error(expected_err: &String) -> Option<ErrorCode> {
     None
 }
 
-/// Given a tick & tick-spacing, derive the start tick of the tick-array that this tick would reside in
+/// Given a tick & tick-spacing, derive the start tick of the tick-array that
+/// this tick would reside in
 fn derive_start_tick(curr_tick: i32, tick_spacing: u16) -> i32 {
     let num_of_ticks_in_array = TICK_ARRAY_SIZE * tick_spacing as i32;
     let rem = curr_tick % num_of_ticks_in_array;
@@ -299,7 +282,8 @@ fn derive_start_tick(curr_tick: i32, tick_spacing: u16) -> i32 {
     }
 }
 
-/// Given a start-tick & tick-spacing, derive the last tick of a 3-tick-array sequence
+/// Given a start-tick & tick-spacing, derive the last tick of a 3-tick-array
+/// sequence
 fn derive_last_tick_in_seq(start_tick: i32, tick_spacing: u16, a_to_b: bool) -> i32 {
     let num_of_ticks_in_array = TICK_ARRAY_SIZE * tick_spacing as i32;
     let potential_last = if a_to_b {

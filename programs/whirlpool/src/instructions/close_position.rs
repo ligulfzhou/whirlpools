@@ -1,9 +1,12 @@
-use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Mint, Token, TokenAccount};
-
-use crate::errors::ErrorCode;
-use crate::state::*;
-use crate::util::{burn_and_close_user_position_token, verify_position_authority};
+use {
+    crate::{
+        errors::ErrorCode,
+        state::*,
+        util::{burn_and_close_user_position_token, verify_position_authority},
+    },
+    anchor_lang::prelude::*,
+    anchor_spl::token::{self, Mint, Token, TokenAccount},
+};
 
 #[derive(Accounts)]
 pub struct ClosePosition<'info> {
@@ -33,10 +36,7 @@ pub struct ClosePosition<'info> {
 }
 
 pub fn handler(ctx: Context<ClosePosition>) -> Result<()> {
-    verify_position_authority(
-        &ctx.accounts.position_token_account,
-        &ctx.accounts.position_authority,
-    )?;
+    verify_position_authority(&ctx.accounts.position_token_account, &ctx.accounts.position_authority)?;
 
     if !Position::is_position_empty(&ctx.accounts.position) {
         return Err(ErrorCode::ClosePositionNotEmpty.into());

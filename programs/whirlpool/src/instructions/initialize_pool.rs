@@ -1,6 +1,8 @@
-use crate::{events::*, state::*};
-use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Mint, Token, TokenAccount};
+use {
+    crate::{events::*, state::*},
+    anchor_lang::prelude::*,
+    anchor_spl::token::{self, Mint, Token, TokenAccount},
+};
 
 #[derive(Accounts)]
 // now we don't use bumps, but we must list args in the same order to use tick_spacing arg.

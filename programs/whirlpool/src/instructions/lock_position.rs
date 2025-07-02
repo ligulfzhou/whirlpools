@@ -1,11 +1,14 @@
-use anchor_lang::prelude::*;
-use anchor_spl::token_2022::{self, Token2022};
-use anchor_spl::token_interface::{Mint, TokenAccount};
-
-use crate::errors::ErrorCode;
-use crate::state::*;
-use crate::util::{
-    freeze_user_position_token_2022, is_locked_position, verify_position_authority_interface,
+use {
+    crate::{
+        errors::ErrorCode,
+        state::*,
+        util::{freeze_user_position_token_2022, is_locked_position, verify_position_authority_interface},
+    },
+    anchor_lang::prelude::*,
+    anchor_spl::{
+        token_2022::{self, Token2022},
+        token_interface::{Mint, TokenAccount},
+    },
 };
 
 #[derive(Accounts)]
@@ -48,10 +51,7 @@ pub struct LockPosition<'info> {
 }
 
 pub fn handler(ctx: Context<LockPosition>, lock_type: LockType) -> Result<()> {
-    verify_position_authority_interface(
-        &ctx.accounts.position_token_account,
-        &ctx.accounts.position_authority,
-    )?;
+    verify_position_authority_interface(&ctx.accounts.position_token_account, &ctx.accounts.position_authority)?;
 
     if is_locked_position(&ctx.accounts.position_token_account) {
         // This case should be rejected by initialization of LockConfig account

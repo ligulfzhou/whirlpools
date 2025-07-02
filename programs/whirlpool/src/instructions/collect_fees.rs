@@ -1,10 +1,13 @@
-use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Token, TokenAccount};
-use anchor_spl::token_interface::TokenAccount as TokenAccountInterface;
-
-use crate::{
-    state::*,
-    util::{transfer_from_vault_to_owner, verify_position_authority_interface},
+use {
+    crate::{
+        state::*,
+        util::{transfer_from_vault_to_owner, verify_position_authority_interface},
+    },
+    anchor_lang::prelude::*,
+    anchor_spl::{
+        token::{self, Token, TokenAccount},
+        token_interface::TokenAccount as TokenAccountInterface,
+    },
 };
 
 #[derive(Accounts)]
@@ -36,10 +39,7 @@ pub struct CollectFees<'info> {
 }
 
 pub fn handler(ctx: Context<CollectFees>) -> Result<()> {
-    verify_position_authority_interface(
-        &ctx.accounts.position_token_account,
-        &ctx.accounts.position_authority,
-    )?;
+    verify_position_authority_interface(&ctx.accounts.position_token_account, &ctx.accounts.position_authority)?;
 
     let position = &mut ctx.accounts.position;
 

@@ -10,14 +10,7 @@ pub mod tick;
 pub mod token_badge;
 pub mod whirlpool;
 
-pub use self::whirlpool::*;
-pub use adaptive_fee_tier::*;
-pub use config::*;
-pub use config_extension::*;
-pub use fee_tier::*;
-pub use lock_config::*;
-pub use oracle::*;
-pub use position::*;
-pub use position_bundle::*;
-pub use tick::*;
-pub use token_badge::*;
+pub use {
+    self::whirlpool::*, adaptive_fee_tier::*, config::*, config_extension::*, fee_tier::*, lock_config::*, oracle::*,
+    position::*, position_bundle::*, tick::*, token_badge::*,
+};

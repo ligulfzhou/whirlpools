@@ -1,8 +1,8 @@
-use anchor_lang::prelude::*;
-use anchor_spl::token_interface::TokenAccount as TokenAccountInterface;
-
-use crate::state::*;
-use crate::util::verify_position_authority_interface;
+use {
+    crate::{state::*, util::verify_position_authority_interface},
+    anchor_lang::prelude::*,
+    anchor_spl::token_interface::TokenAccount as TokenAccountInterface,
+};
 
 #[derive(Accounts)]
 pub struct ResetPositionRange<'info> {
@@ -27,19 +27,10 @@ pub struct ResetPositionRange<'info> {
     pub system_program: Program<'info, System>,
 }
 
-pub fn handler(
-    ctx: Context<ResetPositionRange>,
-    new_tick_lower_index: i32,
-    new_tick_upper_index: i32,
-) -> Result<()> {
-    verify_position_authority_interface(
-        &ctx.accounts.position_token_account,
-        &ctx.accounts.position_authority,
-    )?;
+pub fn handler(ctx: Context<ResetPositionRange>, new_tick_lower_index: i32, new_tick_upper_index: i32) -> Result<()> {
+    verify_position_authority_interface(&ctx.accounts.position_token_account, &ctx.accounts.position_authority)?;
 
-    ctx.accounts.position.reset_position_range(
-        &ctx.accounts.whirlpool,
-        new_tick_lower_index,
-        new_tick_upper_index,
-    )
+    ctx.accounts
+        .position
+        .reset_position_range(&ctx.accounts.whirlpool, new_tick_lower_index, new_tick_upper_index)
 }

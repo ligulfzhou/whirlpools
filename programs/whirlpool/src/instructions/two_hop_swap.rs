@@ -1,12 +1,13 @@
-use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Token, TokenAccount};
-
-use crate::{
-    errors::ErrorCode,
-    events::*,
-    manager::swap_manager::*,
-    state::{OracleAccessor, Whirlpool},
-    util::{to_timestamp_u64, update_and_swap_whirlpool, SparseSwapTickSequenceBuilder},
+use {
+    crate::{
+        errors::ErrorCode,
+        events::*,
+        manager::swap_manager::*,
+        state::{OracleAccessor, Whirlpool},
+        util::{to_timestamp_u64, update_and_swap_whirlpool, SparseSwapTickSequenceBuilder},
+    },
+    anchor_lang::prelude::*,
+    anchor_spl::token::{self, Token, TokenAccount},
 };
 
 #[derive(Accounts)]
@@ -67,15 +68,19 @@ pub struct TwoHopSwap<'info> {
     pub tick_array_two_2: UncheckedAccount<'info>,
 
     #[account(seeds = [b"oracle", whirlpool_one.key().as_ref()], bump)]
-    /// CHECK: Oracle is currently unused and will be enabled on subsequent updates
+    /// CHECK: Oracle is currently unused and will be enabled on subsequent
+    /// updates
     pub oracle_one: UncheckedAccount<'info>,
 
     #[account(seeds = [b"oracle", whirlpool_two.key().as_ref()], bump)]
-    /// CHECK: Oracle is currently unused and will be enabled on subsequent updates
+    /// CHECK: Oracle is currently unused and will be enabled on subsequent
+    /// updates
     pub oracle_two: UncheckedAccount<'info>,
     // Special notes to support pools with AdaptiveFee:
-    // - For trades on pools using AdaptiveFee, pass oracle_one and oracle_two as writable accounts in the remaining accounts.
-    // - If you want to avoid using the remaining accounts, you can pass oracle_one and oracle_two as writable accounts directly.
+    // - For trades on pools using AdaptiveFee, pass oracle_one and oracle_two as writable accounts in the remaining
+    //   accounts.
+    // - If you want to avoid using the remaining accounts, you can pass oracle_one and oracle_two as writable accounts
+    //   directly.
 
     // remaining accounts
     // - [mut] oracle_one
@@ -144,22 +149,21 @@ pub fn handler(
     )?;
     let mut swap_tick_sequence_two = builder_two.build()?;
 
-    let oracle_accessor_one =
-        OracleAccessor::new(whirlpool_one, ctx.accounts.oracle_one.to_account_info())?;
+    let oracle_accessor_one = OracleAccessor::new(whirlpool_one, ctx.accounts.oracle_one.to_account_info())?;
     if !oracle_accessor_one.is_trade_enabled(timestamp)? {
         return Err(ErrorCode::TradeIsNotEnabled.into());
     }
     let adaptive_fee_info_one = oracle_accessor_one.get_adaptive_fee_info()?;
 
-    let oracle_accessor_two =
-        OracleAccessor::new(whirlpool_two, ctx.accounts.oracle_two.to_account_info())?;
+    let oracle_accessor_two = OracleAccessor::new(whirlpool_two, ctx.accounts.oracle_two.to_account_info())?;
     if !oracle_accessor_two.is_trade_enabled(timestamp)? {
         return Err(ErrorCode::TradeIsNotEnabled.into());
     }
     let adaptive_fee_info_two = oracle_accessor_two.get_adaptive_fee_info()?;
 
-    // TODO: WLOG, we could extend this to N-swaps, but the account inputs to the instruction would
-    // need to be jankier and we may need to programatically map/verify rather than using anchor constraints
+    // TODO: WLOG, we could extend this to N-swaps, but the account inputs to the
+    // instruction would need to be jankier and we may need to programatically
+    // map/verify rather than using anchor constraints
     let (swap_update_one, swap_update_two) = if amount_specified_is_input {
         // If the amount specified is input, this means we are doing exact-in
         // and the swap calculations occur from Swap 1 => Swap 2
@@ -194,9 +198,10 @@ pub fn handler(
         )?;
         (swap_calc_one, swap_calc_two)
     } else {
-        // If the amount specified is output, this means we need to invert the ordering of the calculations
-        // and the swap calculations occur from Swap 2 => Swap 1
-        // but the actual swaps occur from Swap 1 => Swap 2 (to ensure that the intermediate token exists in the account)
+        // If the amount specified is output, this means we need to invert the ordering
+        // of the calculations and the swap calculations occur from Swap 2 =>
+        // Swap 1 but the actual swaps occur from Swap 1 => Swap 2 (to ensure
+        // that the intermediate token exists in the account)
         let swap_calc_two = swap(
             whirlpool_two,
             &mut swap_tick_sequence_two,
@@ -244,8 +249,8 @@ pub fn handler(
     }
 
     if amount_specified_is_input {
-        // If amount_specified_is_input == true, then we have a variable amount of output
-        // The slippage we care about is the output of the second swap.
+        // If amount_specified_is_input == true, then we have a variable amount of
+        // output The slippage we care about is the output of the second swap.
         let output_amount = if a_to_b_two {
             swap_update_two.amount_b
         } else {
@@ -279,8 +284,7 @@ pub fn handler(
     } else {
         (swap_update_one.amount_b, swap_update_one.amount_a)
     };
-    let (lp_fee_one, protocol_fee_one) =
-        (swap_update_one.lp_fee, swap_update_one.next_protocol_fee);
+    let (lp_fee_one, protocol_fee_one) = (swap_update_one.lp_fee, swap_update_one.next_protocol_fee);
 
     update_and_swap_whirlpool(
         whirlpool_one,
@@ -301,8 +305,7 @@ pub fn handler(
     } else {
         (swap_update_two.amount_b, swap_update_two.amount_a)
     };
-    let (lp_fee_two, protocol_fee_two) =
-        (swap_update_two.lp_fee, swap_update_two.next_protocol_fee);
+    let (lp_fee_two, protocol_fee_two) = (swap_update_two.lp_fee, swap_update_two.next_protocol_fee);
 
     update_and_swap_whirlpool(
         whirlpool_two,

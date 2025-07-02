@@ -1,6 +1,4 @@
-use anchor_lang::prelude::*;
-
-use crate::state::*;
+use {crate::state::*, anchor_lang::prelude::*};
 
 #[derive(Accounts)]
 pub struct InitializeConfig<'info> {

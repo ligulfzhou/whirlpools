@@ -1,6 +1,7 @@
-use anchor_lang::prelude::*;
-
-use crate::state::{WhirlpoolsConfig, WhirlpoolsConfigExtension};
+use {
+    crate::state::{WhirlpoolsConfig, WhirlpoolsConfigExtension},
+    anchor_lang::prelude::*,
+};
 
 #[derive(Accounts)]
 pub struct SetTokenBadgeAuthority<'info> {
@@ -16,7 +17,8 @@ pub struct SetTokenBadgeAuthority<'info> {
     pub new_token_badge_authority: UncheckedAccount<'info>,
 }
 
-/// Set the token badge authority. Only the config extension authority has permission to invoke this instruction.
+/// Set the token badge authority. Only the config extension authority has
+/// permission to invoke this instruction.
 pub fn handler(ctx: Context<SetTokenBadgeAuthority>) -> Result<()> {
     ctx.accounts
         .whirlpools_config_extension
